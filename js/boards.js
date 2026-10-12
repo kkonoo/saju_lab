@@ -120,11 +120,13 @@ function box(cls, kids, onClick) {
 }
 
 // ================= 육임 =================
-function drawLiuren(r, aiFor) {
+// 칩으로 켜고 끄는 층(뼈대인 천반·지반은 늘 보임). show가 없으면(개념 사례 판) 다 보임
+const LR_CHIPS = [['jiang', '천장'], ['dun', '둔간'], ['rel', '육친']];
+function drawLiuren(r, aiFor, show) {
   const jShort = j => LR_JIANG_SHORT[j] || '';
-  const dg = r.day[0];
-  const jiang = j => tip('jg', jShort(j), `천장 ${j}(${JIANG_HJ[j]?.[0]})`, [short(JIANG_ID[j]), ...(TERMS.get(JIANG_ID[j])?.body || []).slice(0, 1)], [JIANG_ID[j], 'lr-cheonjang']);
-  const dun = (d, z) => d
+  const dg = r.day[0], on = k => !show || !!show[k];
+  const jiang = j => on('jiang') && tip('jg', jShort(j), `천장 ${j}(${JIANG_HJ[j]?.[0]})`, [short(JIANG_ID[j]), ...(TERMS.get(JIANG_ID[j])?.body || []).slice(0, 1)], [JIANG_ID[j], 'lr-cheonjang']);
+  const dun = (d, z) => !on('dun') ? null : d
     ? tip('dun glyph', d, `둔간 ${d}`, [`${z}에 붙는 둔간이에요. 일진 ${r.day}의 순(旬) 안에서 이 지지와 짝이 되는 천간이에요.`, charInfo(d), short('lr-dungan')], ['lr-dungan'])
     : tip('dun glyph', r.kong.includes(z) ? '○' : '', '공망', [`${z}는 일진 공망(${r.kong.join('')})이라 둔간이 없어요. 허하거나 늦어진다고 보는 경우가 많아요.`], ['base-gongmang']);
   // 사과·천지반의 위(천반)·아래(지반 또는 일간)는 한 쌍으로 읽음(상신·하신의 생극, 가림): 어느 쪽을 눌러도 짝 설명
@@ -147,7 +149,7 @@ function drawLiuren(r, aiFor) {
   };
   const pairTip = (cls, kids, u, d, j, ke) => { const x = pair(u, d, j, ke); return tip(`${cls} lr-pair`, kids, x.title, x.lines, x.ids); };
   const up = z => tip(`oh-cell ${ohCls(z)}`, z, `천반 ${z}`, [charInfo(z), `일간 ${dg} 기준 육친: ${lrRel(dg, z)}${r.kong.includes(z) ? ' · 공망' : ''}`], ['lr-cheonjiban', 'lr-yukchin']);
-  const rel = (rl, kong) => tip('rel', [...[khs(rl, LR_REL_HJ[rl])].flat(), kong ? ' · 공망' : ''], `육친 ${rl}(${LR_REL_HJ[rl]})`, [`일간 ${dg}(${OH_KO[ohOf(dg)]}) 기준으로 본 관계예요.`, short('lr-yukchin'), kong ? `일진 공망(${r.kong.join('')})에 들어요.` : ''], ['lr-yukchin', kong ? 'base-gongmang' : null]);
+  const rel = (rl, kong) => on('rel') && tip('rel', [...[khs(rl, LR_REL_HJ[rl])].flat(), kong ? ' · 공망' : ''], `육친 ${rl}(${LR_REL_HJ[rl]})`, [`일간 ${dg}(${OH_KO[ohOf(dg)]}) 기준으로 본 관계예요.`, short('lr-yukchin'), kong ? `일진 공망(${r.kong.join('')})에 들어요.` : ''], ['lr-yukchin', kong ? 'base-gongmang' : null]);
   const sanRow = h('div', 'lr-row three', ...r.san.map(s => box('lr-box', [
     h('div', 't', s.name), dun(s.dun, s.zhi),
     h('div', 'up glyph', jiang(s.jiang), up(s.zhi)),

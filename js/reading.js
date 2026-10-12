@@ -129,6 +129,15 @@ function readMyeongri(view) {
   draw();
 }
 
+// 켜고 끄는 칩 줄 (켜 둔 것은 이 브라우저에 기억)
+function chipRow(label, list, show, redraw) {
+  return h('div', 'chips qm-chips no-print', h('span', 'muted small', label), ...list.map(([k, name]) => {
+    const b = button(name, () => { show[k] = !show[k]; savePrefs(); redraw(); }, 'chip');
+    b.classList.toggle('on', !!show[k]);
+    return b;
+  }));
+}
+
 // ---------- 육임 ----------
 function readLiuren(view) {
   const st = READ.liuren ||= { input: { ...nowInput(), dayMode: 'auto', question: '' } };
@@ -146,7 +155,8 @@ function readLiuren(view) {
         aiButton('liuren', st, r), button('💾 저장', () => saveBoard(st, 'liuren', { ...i }, null, askName(i)), 'btn no-print')),
       askText(i) ? h('p', '', '❓ ', h('b', '', askText(i))) : null,
       h('p', 'hint', corrNote(r.pillars)),
-      drawLiuren(r, (part, focus) => aiPart('liuren', st, r, part, focus))),
+      chipRow('보기', LR_CHIPS, prefs.lrShow ||= { jiang: true, dun: true, rel: true }, draw),
+      drawLiuren(r, (part, focus) => aiPart('liuren', st, r, part, focus), prefs.lrShow)),
       ...aiBox('liuren', st, r),
       h('p', 'hint', '💡 칸을 누르면 천장·육친 뜻이 나와요. 주점/야점 자동은 卯~申시를 낮으로 봐요. 귀인 표·섭해 방식은 📘 개념에 적어 두었어요.'));
   }
@@ -224,14 +234,10 @@ function qimenBirth(top, out) {
       seg(QM_CHARTS, cd.k, v => move(() => { st.chart = v; })), h('span', 'row', ...ctl),
       seg([['both', '연국+홍국'], ['yeon', '연국'], ['hong', '홍국']], prefs.qmLayer || 'both', v => { prefs.qmLayer = v; savePrefs(); draw(); }));
   }
-  function chipBar(cd) { // 기본 말고 더 볼 것 (켜 둔 것은 이 브라우저에 기억)
-    const layer = prefs.qmLayer || 'both', show = prefs.qmShow ||= {};
+  function chipBar(cd) { // 기본 말고 더 볼 것
+    const layer = prefs.qmLayer || 'both';
     const list = [...(layer !== 'hong' ? QM_CHIPS.yeon : []), ...(layer !== 'yeon' ? QM_CHIPS.hong.filter(([k]) => cd.k === 'won' || (k !== 'daeun' && k !== 'soun')) : [])];
-    return h('div', 'chips qm-chips no-print', h('span', 'muted small', '더 보기'), ...list.map(([k, label]) => {
-      const b = button(label, () => { show[k] = !show[k]; savePrefs(); draw(); }, 'chip');
-      b.classList.toggle('on', !!show[k]);
-      return b;
-    }));
+    return chipRow('더 보기', list, prefs.qmShow ||= {}, draw);
   }
   function draw() {
     if (st.err) return out.replaceChildren(h('p', 'empty', `⚠️ ${st.err}`));
