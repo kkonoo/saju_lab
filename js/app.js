@@ -16,7 +16,7 @@ const SUBS = [
 
 let db = { version: VERSION, recs: [] }, idb = null;
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
-let prefs = Object.assign({ theme: 'auto', fs: 1, correct: 'lon', lon: 127.5, yajasi: false, tarotRev: true, subj: 'qimen', sub: 'read' }, readJSON(PKEY) || {});
+let prefs = Object.assign({ theme: 'auto', fs: 1, correct: 'lon', lon: 127.5, yajasi: false, tarotRev: true, claudeKey: '', subj: 'qimen', sub: 'read' }, readJSON(PKEY) || {});
 const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(prefs)); } catch { /* 저장 못 해도 화면은 그대로 */ } };
 const timeOpt = () => ({ correct: prefs.correct, lon: +prefs.lon || 127.5, yajasi: prefs.yajasi });
 
@@ -267,11 +267,13 @@ $('settingsBtn').addEventListener('click', () => {
   $('setLon').value = prefs.lon;
   $('setYaja').checked = prefs.yajasi;
   $('setRev').checked = prefs.tarotRev;
+  $('setClaudeKey').value = prefs.claudeKey;
   $('settingsDlg').showModal();
 });
 $('setLon').addEventListener('change', e => { const v = +e.target.value; if (v >= 100 && v <= 150) { prefs.lon = v; savePrefs(); render(); } });
 $('setYaja').addEventListener('change', e => { prefs.yajasi = e.target.checked; savePrefs(); render(); });
 $('setRev').addEventListener('change', e => { prefs.tarotRev = e.target.checked; savePrefs(); });
+$('setClaudeKey').addEventListener('input', e => { prefs.claudeKey = e.target.value.trim(); savePrefs(); });
 $('exportBtn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify({ app: 'saju-lab', version: VERSION, recs: db.recs.filter(r => !r.deleted) }, null, 1)], { type: 'application/json' });
   const a = h('a');

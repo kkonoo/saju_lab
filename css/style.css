@@ -125,6 +125,7 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .cell-btn:hover { filter: brightness(1.1); }
 .board-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: calc(13px * var(--fs)); color: var(--muted); margin: 6px 0; }
 .board-meta b { color: var(--text); font-weight: 600; }
+.ai-text { white-space: pre-wrap; line-height: 1.7; }
 .kong { color: var(--bad); }
 .tag { display: inline-block; font-size: calc(10px * var(--fs)); padding: 0 5px; border-radius: 5px; background: var(--accent); color: var(--on-accent); line-height: 1.6; }
 .tag.bad { background: var(--bad); }
