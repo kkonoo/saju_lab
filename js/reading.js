@@ -71,7 +71,7 @@ function readMyeongri(view) {
   const out = h('div');
   const run = () => {
     st.err = bd.read(); i.time = time.value; i.unknownHour = unk.checked;
-    st.recName = null;
+    fresh(st);
     draw();
   };
   function draw() {
@@ -85,11 +85,12 @@ function readMyeongri(view) {
       savedNote(st),
       h('div', 'panel',
         h('div', 'panel-head', h('h3', '', `${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.unknownHour || !i.time ? '(시 모름)' : i.time}`), h('span', 'grow'),
-          button('💾 저장', () => openSave('myeongri', { ...i }, null, ''), 'btn no-print')),
+          aiButton('myeongri', st, r), button('💾 저장', () => openSave('myeongri', { ...i }, null, ''), 'btn no-print')),
         h('p', 'hint', `절입: ${r.info.jeol.name} ${fmtUtc(r.info.jeol.utcMin * 60000)} · 다음 ${r.info.nextJeol.name} ${fmtUtc(r.info.nextJeol.utcMin * 60000)}`),
         i.unknownHour || !i.time ? null : h('p', 'hint', corrNote(r.info)),
         i.unknownHour || !i.time ? null : h('p', '', button('🧭 같은 생일로 기문 명국 보기', () => { READ.qimenBirth = { input: { date: i.date, time: i.time, male: i.male, cal: i.cal, lunar: i.lunar } }; prefs.qmMode = 'birth'; savePrefs(); go('qimen', 'read'); }, 'link')),
         drawPillars(r)),
+      ...aiBox('myeongri', st, r),
       h('p', 'hint', '💡 글자나 칸을 누르면 뜻과 용어 설명이 나와요.'),
     );
   }
@@ -108,31 +109,30 @@ function readLiuren(view) {
   const st = READ.liuren ||= { input: { ...nowInput(), dayMode: 'auto', question: '' } };
   const i = st.input;
   const out = h('div');
-  const q = inp('text', i.question, { placeholder: '질문 (비워 둬도 돼요)' });
-  q.addEventListener('input', () => { i.question = q.value; });
   const date = inp('date', i.date), time = inp('time', i.time);
-  const change = () => { i.date = date.value || nowInput().date; i.time = time.value || '12:00'; st.recName = null; draw(); };
+  const change = () => { i.date = date.value || nowInput().date; i.time = time.value || '12:00'; fresh(st); draw(); };
   date.addEventListener('change', change); time.addEventListener('change', change);
-  const step = n => { Object.assign(i, shiftHours(i, n)); date.value = i.date; time.value = i.time; draw(); };
+  const step = n => { Object.assign(i, shiftHours(i, n)); date.value = i.date; time.value = i.time; fresh(st); draw(); };
   function draw() {
     const dm = i.dayMode === 'auto' ? undefined : i.dayMode === 'day';
     const r = liurenAt(...parseDT(i), timeOpt(), dm);
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `${fmtDT(i)} · ${r.day}일 ${r.pillars.hour}시`), h('span', 'grow'),
-        button('💾 저장', () => openSave('liuren', { ...i }, null, i.question), 'btn no-print')),
-      i.question ? h('p', '', '❓ ', h('b', '', i.question)) : null,
+        aiButton('liuren', st, r), button('💾 저장', () => openSave('liuren', { ...i }, null, askName(i)), 'btn no-print')),
+      askText(i) ? h('p', '', '❓ ', h('b', '', askText(i))) : null,
       h('p', 'hint', corrNote(r.pillars)),
       drawLiuren(r)),
+      ...aiBox('liuren', st, r),
       h('p', 'hint', '💡 칸을 누르면 천장·육친 뜻이 나와요. 주점/야점 자동은 卯~申시를 낮으로 봐요. 귀인 표·섭해 방식은 📘 개념에 적어 두었어요.'));
   }
   view.replaceChildren(
     h('div', 'panel no-print',
       h('div', 'form-grid', field('날짜', date), field('시각', time),
-        h('div', 'field', '주점·야점', seg([['auto', '자동'], ['day', '주점'], ['night', '야점']], i.dayMode, v => { i.dayMode = v; draw(); }))),
-      h('div', 'row', button('‹ 이전 시', () => step(-2), 'btn'), button('지금', () => { Object.assign(i, nowInput()); date.value = i.date; time.value = i.time; draw(); }, 'btn'), button('다음 시 ›', () => step(2), 'btn')), q),
+        h('div', 'field', '주점·야점', seg([['auto', '자동'], ['day', '주점'], ['night', '야점']], i.dayMode, v => { i.dayMode = v; fresh(st); draw(); }))),
+      h('div', 'row', button('‹ 이전 시', () => step(-2), 'btn'), button('지금', () => { Object.assign(i, nowInput()); date.value = i.date; time.value = i.time; fresh(st); draw(); }, 'btn'), button('다음 시 ›', () => step(2), 'btn')),
+      askForm(i, !!askText(i))),
     out);
   out.style.marginTop = '12px';
-  q.style.width = '100%';
   draw();
 }
 
@@ -146,26 +146,25 @@ function readQimen(view) {
   if (mode === 'birth') return qimenBirth(top, out);
   const st = READ.qimen ||= { input: { ...nowInput(), question: '' } };
   const i = st.input;
-  const q = inp('text', i.question, { placeholder: '질문·메모 (비워 둬도 돼요)' });
-  q.addEventListener('input', () => { i.question = q.value; });
-  q.style.width = '100%';
   const date = inp('date', i.date), time = inp('time', i.time);
-  const change = () => { i.date = date.value || nowInput().date; i.time = time.value || '12:00'; st.recName = null; draw(); };
+  const change = () => { i.date = date.value || nowInput().date; i.time = time.value || '12:00'; fresh(st); draw(); };
   date.addEventListener('change', change); time.addEventListener('change', change);
-  const step = n => { Object.assign(i, shiftHours(i, n)); date.value = i.date; time.value = i.time; draw(); };
+  const step = n => { Object.assign(i, shiftHours(i, n)); date.value = i.date; time.value = i.time; fresh(st); draw(); };
   function draw() {
     const r = qimenAt(...parseDT(i), timeOpt());
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `${fmtDT(i)} · ${r.pillars.day}일 ${r.shi}시`), h('span', 'grow'),
-        button('💾 저장', () => openSave('qimen', { ...i, mode: 'now' }, null, i.question), 'btn no-print')),
-      i.question ? h('p', '', '❓ ', h('b', '', i.question)) : null,
+        aiButton('qimen', st, r), button('💾 저장', () => openSave('qimen', { ...i, mode: 'now' }, null, askName(i)), 'btn no-print')),
+      askText(i) ? h('p', '', '❓ ', h('b', '', askText(i))) : null,
       h('p', 'hint', corrNote(r.pillars)),
       drawQimen(r)),
+      ...aiBox('qimen', st, r),
       h('p', 'hint', '💡 연국(시가)기문 · 전반식 · 절기+부두로 국을 정해요. 홍국기문(홍국수·세·행년)은 아직 없어요.'));
   }
   top.append(
     h('div', 'form-grid', field('날짜', date), field('시각', time)),
-    h('div', 'row', button('‹ 이전 시', () => step(-2), 'btn'), button('지금', () => { Object.assign(i, nowInput()); date.value = i.date; time.value = i.time; draw(); }, 'btn'), button('다음 시 ›', () => step(2), 'btn')), q);
+    h('div', 'row', button('‹ 이전 시', () => step(-2), 'btn'), button('지금', () => { Object.assign(i, nowInput()); date.value = i.date; time.value = i.time; fresh(st); draw(); }, 'btn'), button('다음 시 ›', () => step(2), 'btn')),
+    askForm(i, !!askText(i)));
   draw();
 }
 // 명국: 태어난 시각으로 포국 + 사주 네 기둥과 년·월·일·시 궁 표시
@@ -181,16 +180,17 @@ function qimenBirth(top, out) {
     const p = r.pillars;
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.time}`), h('span', 'grow'),
-        button('💾 저장', () => openSave('qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
+        aiButton('qimenBirth', st, r), button('💾 저장', () => openSave('qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
       h('p', '', h('b', 'glyph', `${p.year} ${p.month} ${p.day} ${p.hour}`), h('span', 'muted', ' (년 월 일 시)'), ' ',
         button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false, cal: i.cal, lunar: i.lunar } }; go('myeongri', 'read'); }, 'link')),
       h('p', 'hint', corrNote(p)),
       drawQimen(r)),
+      ...aiBox('qimenBirth', st, r),
       h('p', 'hint', '💡 연국기문 명반이에요. 태어난 시각의 시가 포국에 년·월·일·시가 놓인 궁을 표시해요. 홍국기문 명반(홍국수·세·행년·대운)은 아직 없어요.'));
   }
   top.append(
     h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex)),
-    h('div', 'row', button('명국 보기', () => { st.err = bd.read(); i.time = time.value; st.recName = null; draw(); }, 'btn primary')));
+    h('div', 'row', button('명국 보기', () => { st.err = bd.read(); i.time = time.value; fresh(st); draw(); }, 'btn primary')));
   draw();
 }
 
@@ -205,9 +205,6 @@ function rand(n) { try { const a = new Uint32Array(1); crypto.getRandomValues(a)
 function readTarot(view) {
   const st = READ.tarot ||= { input: { spread: 'three', question: '' }, result: null };
   const i = st.input;
-  const q = inp('text', i.question, { placeholder: '질문 (예: 이번 달 연구는 어디에 힘을 쓸까?)' });
-  q.addEventListener('input', () => { i.question = q.value; });
-  q.style.width = '100%';
   const out = h('div');
   out.style.marginTop = '12px';
   const draw = () => {
@@ -215,58 +212,177 @@ function readTarot(view) {
     const deck = CONTENT.tarot.terms.map(t => t.id).filter(id => /^tr-[mwcsp]\d\d$/.test(id));
     for (let k = deck.length - 1; k > 0; k--) { const j = rand(k + 1); [deck[k], deck[j]] = [deck[j], deck[k]]; }
     st.result = sp.pos.map((pos, k) => ({ pos, card: deck[k], reversed: prefs.tarotRev && rand(2) === 1, hidden: true }));
-    st.recName = null;
-    delete i.ai; st.aiBusy = false; st.aiErr = '';
+    fresh(st);
+    i.drawnAt = nowInput().date;
     show();
   };
   function show() {
     if (!st.result) return out.replaceChildren(h('p', 'empty', '스프레드를 고르고 질문을 떠올린 뒤 🃏 뽑기를 눌러요.'));
-    const sp = { name: st.input.spreadName || SPREADS[i.spread].name, question: i.question, cards: st.result };
+    const sp = { name: st.input.spreadName || SPREADS[i.spread].name, question: askText(i), cards: st.result };
     const allOpen = st.result.every(c => !c.hidden);
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('span', 'grow'),
         allOpen ? null : button('모두 뒤집기', () => { st.result.forEach(c => { c.hidden = false; }); show(); }, 'btn'),
-        allOpen && !st.aiBusy && !i.ai ? button('🤖 질문에 맞춰 읽기', () => askClaude(st), 'btn no-print') : null,
-        allOpen ? button('💾 저장', () => openSave('tarot', { ...i, spreadName: SPREADS[i.spread].name }, st.result.map(({ hidden, ...c }) => c), i.question), 'btn no-print') : null),
-      drawSpread(sp, k => { st.result[k].hidden = false; show(); }),
-      st.aiErr ? h('p', 'hint', `⚠️ ${st.aiErr}`) : null),
-      allOpen && (st.aiBusy || i.ai) ? h('div', 'panel',
-        h('div', 'panel-head', h('h3', '', st.aiBusy ? '🤖 Claude가 읽는 중…' : '🤖 질문에 맞춰 읽기')),
-        Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : i.ai), { id: 'aiText' })) : null,
+        allOpen ? aiButton('tarot', st, st.result) : null,
+        allOpen ? button('💾 저장', () => openSave('tarot', { ...i, spreadName: SPREADS[i.spread].name }, st.result.map(({ hidden, ...c }) => c), askName(i)), 'btn no-print') : null),
+      drawSpread(sp, k => { st.result[k].hidden = false; show(); })),
+      ...(allOpen ? aiBox('tarot', st, st.result) : []),
       allOpen ? h('p', 'hint', '💡 카드를 누르면 정방향·역방향 뜻과 그림 설명이 나와요.') : null);
   }
   view.replaceChildren(
     h('div', 'panel no-print',
       h('div', 'form-grid', h('div', 'field', '스프레드', seg(Object.entries(SPREADS).map(([k, v]) => [k, `${v.name} (${v.pos.length})`]), i.spread, v => { i.spread = v; }))),
-      q, h('div', 'row', button('🃏 뽑기', draw, 'btn primary')),
+      askForm(i, true), h('div', 'row', button('🃏 뽑기', draw, 'btn primary')),
       h('p', 'hint', `78장에서 섞어 뽑아요. 역방향 ${prefs.tarotRev ? '켬' : '끔'} (🔧 보정에서 바꿔요).`)),
     out);
   show();
 }
 
-// ---------- 타로: Claude로 질문에 맞춰 읽기 ----------
-// ⚙️에 넣은 API 키로 브라우저에서 바로 부름(서버 없음). 키는 이 브라우저 설정(localStorage)에만 있음
-const TAROT_SYS = `타로를 공부하는 사람이 뽑은 카드를 그 사람의 질문에 맞춰 읽어 주세요. 결론만큼 읽는 과정을 보고 싶어 해요.
+// ---------- 질문 칸 (타로·육임·기문 시가): 종류 · 날짜 · 기간 · 상대 · 상황 + 세부 질문. 다 안 넣어도 돼요 ----------
+const ASK_KINDS = { // [이모지, 이름, 자주 하는 질문]
+  love: ['💕', '연애', ['그 사람은 나를 어떻게 생각할까?', '이 관계는 앞으로 어떻게 될까?', '다시 연락이 올까?', '새 인연은 언제 올까?']],
+  work: ['💼', '일·직장', ['이직해도 될까?', '이 일은 잘 풀릴까?', '면접 결과는 어떨까?', '지금 일에서 무엇에 힘을 쓸까?']],
+  study: ['📚', '시험·공부', ['이번 시험에 붙을까?', '어디에 힘을 쓰면 좋을까?', '공부 방법을 바꿔야 할까?']],
+  money: ['💰', '돈', ['이번 투자는 괜찮을까?', '돈이 들어올 때는 언제일까?', '어디서 새는 돈을 막아야 할까?']],
+  people: ['🤝', '사람', ['이 사람과 잘 지내려면?', '이 갈등은 풀릴까?', '이 사람을 믿어도 될까?']],
+  health: ['🌿', '건강', ['요즘 몸에서 조심할 곳은?', '생활에서 바꿀 것은?']],
+  choice: ['🔀', '선택', ['A와 B 중 무엇이 나을까?', '지금 시작해도 될까?', '기다리는 게 나을까?']],
+  flow: ['🌤', '흐름', ['이번 달 흐름은 어떨까?', '지금 나에게 필요한 것은?', '올해 조심할 것은?']],
+};
+const ASK_PERIODS = ['오늘', '이번 주', '이번 달', '3개월', '올해'];
+// 하나 고르기 칩 (다시 누르면 풀림)
+function pick(items, value, onPick) {
+  const box = h('div', 'chips');
+  for (const [v, label] of items) {
+    const b = button(label, () => { const on = !b.classList.contains('on'); for (const x of box.children) x.classList.remove('on'); b.classList.toggle('on', on); onPick(on ? v : ''); }, 'chip');
+    b.classList.toggle('on', v === value);
+    box.append(b);
+  }
+  return box;
+}
+function askForm(i, open) {
+  const a = i.ask ||= {};
+  const q = inp('text', i.question, { placeholder: '안 써도 돼요. 아래 자주 하는 질문을 눌러도 돼요' });
+  q.addEventListener('input', () => { i.question = q.value; });
+  const text = (key, ph) => { const e = inp('text', a[key], { placeholder: ph }); e.addEventListener('input', () => { a[key] = e.value.trim(); }); return e; };
+  const date = inp('date', a.date);
+  date.addEventListener('change', () => { a.date = date.value; });
+  const faq = h('div', 'chips');
+  const showFaq = () => faq.replaceChildren(...(ASK_KINDS[a.kind]?.[2] || []).map(t => button(t, () => { q.value = i.question = t; }, 'chip')));
+  showFaq();
+  const box = h('details', 'ask', h('summary', '', '❓ 질문 (다 안 넣어도 돼요)'),
+    h('div', 'field', '종류', pick(Object.entries(ASK_KINDS).map(([k, [e, n]]) => [k, `${e} ${n}`]), a.kind, v => { a.kind = v; showFaq(); })),
+    h('div', 'field', '기간', pick(ASK_PERIODS.map(p => [p, p]), a.period, v => { a.period = v; })),
+    h('div', 'form-grid', field('날짜 (시험·면접·약속 날)', date), field('상대', text('who', '예: 썸 상대, 팀장님')), field('상황', text('situation', '예: 연락이 뜸해졌어요'))),
+    field('세부 질문', q), faq);
+  box.open = open;
+  return box;
+}
+// 질문 한 줄: "📚 시험·공부 · 2026-11-15 · 이번 달 — 이번 시험에 붙을까?"
+function askText(i) {
+  const a = i.ask || {}, k = ASK_KINDS[a.kind];
+  const tags = [k && `${k[0]} ${k[1]}`, a.date, a.period, a.who && `상대: ${a.who}`, a.situation].filter(Boolean).join(' · ');
+  return [tags, (i.question || '').trim()].filter(Boolean).join(' — ');
+}
+const askName = i => ((i.question || '').trim() || askText(i)).slice(0, 60); // 저장할 때 이름 칸에 미리 넣을 것
 
-- 카드마다 한 문단: 자리의 뜻과 카드의 뜻(정·역방향)을 짚고, 그래서 이 질문에서는 무엇을 말하는지 구체적으로 써요. 문단은 "1. 과거 · 펜타클 4 역방향 —"처럼 시작해요.
-- 끝에 카드들이 서로 어떻게 이어지는지 묶어 한 문단, 그리고 해 볼 만한 일 한두 가지를 써요.
-- 카드 뜻은 함께 주는 앱의 풀이를 바탕으로 해요.
-- 질문이 없으면 '요즘의 나'에 대한 읽기로 해요.
+// ---------- 🤖 Claude로 읽기 ----------
+// ⚙️에 넣은 API 키로 브라우저에서 바로 부름(서버 없음). 키는 이 브라우저 설정(localStorage)에만 있음
+// 판이 바뀌면(새로 뽑기·날짜 바꾸기) 지난 읽기는 지우고, 받는 중이던 읽기는 버림
+function fresh(st) { st.gen = (st.gen || 0) + 1; delete st.input.ai; st.aiBusy = false; st.aiErr = ''; st.recName = null; }
+
+const AI_RULES = `
+- 앱이 계산해 준 판 값을 그대로 쓰고 다시 계산하지 말아요.
+- 공부하는 사람이 따라 읽을 수 있게, 결론만큼 읽는 과정(어느 칸의 무엇을 보고 그렇게 읽는지)을 보여 줘요.
 - 쉬운 해요체로 쓰고, 정해진 미래처럼 단정하지 말아요.
 - 마크다운 기호(#, *, -, 표)는 쓰지 말고 문단 사이는 빈 줄 하나로 나눠요.`;
-function tarotPrompt(st) {
-  const i = st.input;
-  return [`질문: ${(i.question || '').trim() || '(없음)'}`, `스프레드: ${i.spreadName || SPREADS[i.spread].name}`,
-    ...st.result.map((c, k) => {
+const ASK_RULE = `
+- 질문은 [질문] 칸에 넣은 것만 와요. 세부 질문이 없으면 종류·날짜·기간·상대·상황으로 무엇을 묻는지 짐작해 읽고, 아무것도 없으면 '요즘의 나'로 읽어요.`;
+// 질문 칸 → 글
+function askLines(i) {
+  const a = i.ask || {};
+  return ['[질문]', a.kind && `종류: ${ASK_KINDS[a.kind][1]}`, a.date && `날짜: ${a.date}`, a.period && `기간: ${a.period}`,
+    a.who && `상대: ${a.who}`, a.situation && `상황: ${a.situation}`, `세부 질문: ${(i.question || '').trim() || '(없음)'}`].filter(Boolean).join('\n');
+}
+// 판 → 글 (과목마다)
+function myeongriText(i, r) {
+  const yr = +nowInput().date.slice(0, 4), s = seun(yr, r.dayGan);
+  return [`${i.male ? '남(건명)' : '여(곤명)'} · ${birthText(i)} ${r.unknownHour ? '(시 모름)' : i.time} · 오늘 ${nowInput().date}`,
+    '[원국]', ...r.pillars.map(p => `${p.pos}주 ${p.gan}${p.zhi}: 천간 ${p.gan}(${p.ganSs}) · 지지 ${p.zhi}(${p.zhiSs}) · 지장간 ${p.jjg.map(j => `${j.g}(${j.ss})`).join(' ')} · 12운성 ${p.unseong}`),
+    `오행 개수: ${Object.entries(r.count).map(([k, v]) => `${OH_KO[k]} ${v}`).join(' ')}`,
+    `합충: ${r.relations.map(x => x.text).join(', ') || '없음'} · 공망: ${r.kong.join('')}`,
+    `[대운] ${r.forward ? '순행' : '역행'}, 대운수 ${r.daeunsu}: ${r.daeun.map(d => `${d.age}세 ${d.gz}(${d.ganSs}/${d.zhiSs}, ${d.unseong})`).join(' · ')}`,
+    `[올해 세운] ${s.year} ${s.gz}(${s.ganSs}/${s.zhiSs}, ${s.unseong})`].join('\n');
+}
+function qimenText(r) {
+  const m = r.marks, p = r.pillars;
+  return [`사주 ${p.year} ${p.month} ${p.day} ${p.hour} (년 월 일 시)`,
+    `${r.term} ${r.yuan}(부두 ${r.futou}) · ${r.dun} ${r.ju}국 · 시 ${r.shi} · 순수 ${r.xun}(부의 ${r.fuYi}) · 직부 ${r.zhifu} → ${QM_GUNG[r.zhifuTo]} · 직사 ${r.zhishi} → ${QM_GUNG[r.zhishiTo]} · 공망 ${r.kong.join('')}`,
+    '[9궁] 천반 / 지반 / 구성 / 팔문 / 팔신 / 사주 표시(년·월·일·시의 천간이 지반에 든 궁, 지지가 속한 궁)',
+    ...Object.entries(r.palaces).map(([n, c]) => `${QM_GUNG[n]}: ${c.heaven || '-'} / ${c.earth || '-'} / ${c.star || '-'} / ${c.door || '-'} / ${c.god || '-'}` +
+      (m[n] ? ` / ${[m[n].gan.length && `천간 ${m[n].gan.join('·')}`, m[n].ji.length && `지지 ${m[n].ji.join('·')}`].filter(Boolean).join(', ')}` : ''))].join('\n');
+}
+function liurenText(i, r) {
+  const p = r.pillars;
+  return [`점친 시각 ${fmtDT(i)} · 사주 ${p.year} ${p.month} ${p.day} ${p.hour}`,
+    `월장 ${r.woljang}(${r.junggi}) · ${r.daynight} · 귀인 ${r.gui}(지반 ${r.guiOn}에 앉아 ${r.guiDir}) · 공망 ${r.kong.join('')}`,
+    `천지반(지반 위 천반): ${[...JI].map(z => `${z}↑${r.plate[z]}`).join(' ')}`,
+    `천장(천반 기준): ${Object.entries(r.jiang).map(([z, n]) => `${z} ${n}`).join(' · ')}`,
+    `사과: ${r.ke.map(k => `${k.n}과 ${k.down} 위 ${k.up}(${k.jiang}, 둔간 ${k.dun || '-'})`).join(' / ')}`,
+    `과체: ${r.method} — ${r.how}`,
+    `삼전: ${r.san.map(s => `${s.name} ${s.zhi}(${s.rel}, ${s.jiang}, 둔간 ${s.dun || '-'}${s.kong ? ', 공망' : ''})`).join(' / ')}`].join('\n');
+}
+const AI = { // 과목별: 버튼 이름, 읽는 법, 판 → 글, 질문 칸을 쓰는지
+  tarot: { label: '질문에 맞춰 읽기', ask: true,
+    sys: `타로를 공부하는 사람이 뽑은 카드를 질문에 맞춰 읽어 주세요.
+- 카드마다 한 문단: 자리의 뜻과 카드의 뜻(정·역방향)을 짚고, 그래서 이 질문에서는 무엇을 말하는지 구체적으로 써요. 문단은 "1. 과거 · 펜타클 4 역방향 —"처럼 시작해요.
+- 끝에 카드들이 서로 어떻게 이어지는지 묶어 한 문단, 그리고 해 볼 만한 일 한두 가지를 써요.
+- 카드 뜻은 함께 주는 앱의 풀이를 바탕으로 해요.`,
+    text: (i, cards) => [`뽑은 날 ${i.drawnAt || nowInput().date} · 스프레드: ${i.spreadName || SPREADS[i.spread].name}`, ...cards.map((c, k) => {
       const t = TERMS.get(c.card);
       return `\n${k + 1}. ${c.pos} — ${t.term} ${c.reversed ? '역방향' : '정방향'}\n키워드: ${t.keywords}\n뜻: ${c.reversed ? t.reversed : t.upright}`;
-    })].join('\n');
+    })].join('\n') },
+  liuren: { label: '질문에 맞춰 읽기', ask: true,
+    sys: `대육임을 공부하는 사람이 뽑은 과전을 질문에 맞춰 읽어 주세요.
+- 먼저 질문 종류에 맞춰 무엇을 용신(볼 자리)으로 삼는지 근거와 함께 짧게 정해요.
+- 순서: 과체(어떤 과이고 무슨 뜻인지) → 사과(일간은 나, 일지는 상대·일로 보고 간상·지상의 생극) → 삼전 초전·중전·말전의 흐름(육친·천장·둔간·공망) → 질문에 대한 정리와 해 볼 일.`,
+    text: liurenText },
+  qimen: { label: '질문에 맞춰 읽기', ask: true,
+    sys: `연국(시가)기문을 공부하는 사람이 뽑은 시가 포국을 질문에 맞춰 읽어 주세요.
+- 일간이 든 궁을 나, 시간이 든 궁을 묻는 일로 보고, 질문 종류에 맞춰 무엇을 용신으로 볼지 근거와 함께 먼저 정해요.
+- 그 궁들의 팔문·구성·팔신·천반·지반, 궁끼리의 생극, 직부·직사, 공망을 짚어요.
+- 끝에 질문에 대한 정리와 해 볼 일을 써요.`,
+    text: (i, r) => `점친 시각 ${fmtDT(i)}\n${qimenText(r)}` },
+  myeongri: { label: '해석하기',
+    sys: `명리를 공부하는 사람에게 이 사주 원국을 풀어 주세요.
+- 순서: 일간과 월령으로 본 강약(근거) → 오행 분포(많고 적은 것) → 십신 배치로 본 성향(일·사람·돈) → 합충·공망 → 지금 대운과 올해 세운의 흐름 → 정리.
+- 용신·격국은 하나로 단정하지 말고 후보와 근거를 말해요.`,
+    text: myeongriText },
+  qimenBirth: { label: '해석하기',
+    sys: `연국기문을 공부하는 사람에게 이 명국(태어난 시각의 시가 포국)을 풀어 주세요.
+- 일간이 든 궁(나)을 중심으로 그 궁의 팔문·구성·팔신·천반·지반을 짚고, 년·월·시 간지가 든 궁과의 관계, 직부·직사, 공망을 봐요.
+- 끝에 성향·강점·조심할 점을 정리해요.`,
+    text: (i, r) => `${i.male ? '남(건명)' : '여(곤명)'} · ${birthText(i)} ${i.time}\n${qimenText(r)}` },
+};
+// 판 머리의 🤖 버튼(읽기 전에만)과 판 아래 결과 칸
+function aiButton(key, st, board) {
+  return !st.aiBusy && !st.input.ai ? button(`🤖 ${AI[key].label}`, () => askClaude(key, st, board), 'btn no-print') : null;
 }
-async function askClaude(st) {
+function aiBox(key, st, board) {
+  const i = st.input;
+  return [
+    st.aiErr ? h('p', 'hint', `⚠️ ${st.aiErr}`) : null,
+    st.aiBusy || i.ai ? h('div', 'panel',
+      h('div', 'panel-head', h('h3', '', st.aiBusy ? '🤖 Claude가 읽는 중…' : `🤖 ${AI[key].label}`), h('span', 'grow'),
+        st.aiBusy ? null : button('🔄 다시', () => askClaude(key, st, board), 'btn no-print')),
+      Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : i.ai), { id: 'aiText' })) : null,
+  ];
+}
+async function askClaude(key, st, board) {
   if (!prefs.claudeKey) { toast('⚙️ 설정에 Claude API 키를 넣어 주세요', 3000); $('settingsBtn').click(); return; }
-  const cards = st.result, i = st.input, ctrl = new AbortController();
-  const live = () => READ.tarot === st && st.result === cards; // 다시 뽑거나 다른 판을 열면 그만둠
-  const redraw = () => { if (route.subj === 'tarot' && route.sub === 'read') render(); };
+  const conf = AI[key], i = st.input, gen = st.gen, ctrl = new AbortController();
+  const live = () => READ[key] === st && st.gen === gen; // 판이 바뀌거나 다른 판을 열면 그만둠
+  const redraw = () => { if (route.sub === 'read' && route.subj === (key === 'qimenBirth' ? 'qimen' : key)) render(); };
   Object.assign(st, { aiBusy: true, aiText: '', aiErr: '' });
   redraw();
   try {
@@ -279,7 +395,8 @@ async function askClaude(st) {
       },
       body: JSON.stringify({
         model: 'claude-opus-5-5', max_tokens: 16000, stream: true, output_config: { effort: 'medium' }, fallbacks: 'default',
-        system: TAROT_SYS, messages: [{ role: 'user', content: tarotPrompt(st) }],
+        system: conf.sys + AI_RULES + (conf.ask ? ASK_RULE : ''),
+        messages: [{ role: 'user', content: [conf.text(i, board), conf.ask ? askLines(i) : ''].filter(Boolean).join('\n\n') }],
       }),
     });
     if (!res.ok) {
@@ -306,7 +423,7 @@ async function askClaude(st) {
       const el = $('aiText');
       if (el) el.textContent = st.aiText;
     }
-    if (stop === 'refusal') throw new Error('Claude가 이 질문은 읽지 않았어요. 질문을 바꿔 다시 해 보세요.');
+    if (stop === 'refusal') throw new Error('Claude가 이 판은 읽지 않았어요. 질문을 바꿔 다시 해 보세요.');
     i.ai = st.aiText + (stop === 'max_tokens' ? '\n\n(길이 제한에 걸려 여기서 끊겼어요)' : '');
   } catch (e) {
     if (live()) st.aiErr = e instanceof TypeError ? '인터넷에 연결돼 있는지 확인해 주세요.' : e.message;

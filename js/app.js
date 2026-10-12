@@ -248,9 +248,9 @@ function drawSaved() {
 }
 function savedSummary(r) {
   const i = r.input || {};
-  if (r.kind === 'tarot') return `${i.spreadName || ''} ${i.question ? `· ${i.question}` : ''}`;
+  if (r.kind === 'tarot') return `${i.spreadName || ''} ${askText(i) ? `· ${askText(i)}` : ''}`;
   if (r.kind === 'qimen' && i.mode === 'birth') return `명국 · ${i.date || ''} ${i.time || ''}${i.male ? ' · 남' : ' · 여'}`;
-  return `${i.date || ''} ${i.time || ''}${r.kind === 'myeongri' ? (i.male ? ' · 남' : ' · 여') : ''}${i.question ? ` · ${i.question}` : ''}`;
+  return `${i.date || ''} ${i.time || ''}${r.kind === 'myeongri' ? (i.male ? ' · 남' : ' · 여') : ''}${askText(i) ? ` · ${askText(i)}` : ''}`;
 }
 $('savedBtn').addEventListener('click', () => { drawSaved(); $('savedDlg').showModal(); });
 
