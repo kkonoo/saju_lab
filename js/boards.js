@@ -120,11 +120,39 @@ function box(cls, kids, onClick) {
 }
 
 // ================= 육임 =================
-// 칩으로 켜고 끄는 층(뼈대인 천반·지반은 늘 보임). show가 없으면(개념 사례 판) 다 보임
-const LR_CHIPS = [['jiang', '천장'], ['dun', '둔간'], ['rel', '육친']];
-function drawLiuren(r, aiFor, show) {
+// 칩으로 켜고 끄는 층(뼈대인 천반·지반은 늘 보임). show가 없으면(개념 사례 판) 기본값
+const LR_CHIPS = [['jiang', '천장'], ['dun', '둔간'], ['rel', '육친'], ['un', '12운성'], ['ss', '신살']];
+const LR_SHOW_DEF = { jiang: true, dun: true, rel: true };
+const LR_SS = { // 신살 → [한글, 한자, 뜻] (日·歲 붙은 것은 둘째 글자로)
+  祿: ['일록', '日祿', '일간의 녹 — 먹고사는 힘·자리·봉급'], 德: ['일덕', '日德', '일간의 덕 — 흉을 누그러뜨리고 돕는 힘'],
+  刃: ['양인', '羊刃', '녹이 지나쳐 날이 선 자리 — 다툼·다침·과감함'], 馬: ['역마', '驛馬', '이동·변동·바깥 활동'],
+  桃: ['도화', '桃花·咸池', '매력·인기·이성, 흐트러짐'], 華: ['화개', '華蓋', '예술·종교·학문, 홀로 깊어짐'],
+  劫: ['겁살', '劫煞', '빼앗기거나 갑자기 꺾이는 일'], 亡: ['망신', '亡神', '체면이 깎이거나 구설·잃음'],
+  丁馬: ['정마', '丁馬', '갑작스러운 움직임·변동'], 天馬: ['천마', '天馬', '이동·승진이 순조로움'], 天喜: ['천희', '天喜', '경사·혼인·좋은 소식'],
+};
+const LR_INN = { rok: '녹 앞 한 자리(10간 모두)', yang: '양간만', back: '음간은 녹 뒤 한 자리' };
+function drawLiuren(r, aiFor, show = LR_SHOW_DEF) {
   const jShort = j => LR_JIANG_SHORT[j] || '';
-  const dg = r.day[0], on = k => !show || !!show[k];
+  const dg = r.day[0], dz = r.day[1], on = k => !!show[k];
+  const ssBy = n => { // 신살이 무엇 기준인지
+    if (n === '丁馬') return `일진 ${r.day}의 순(旬)에서 丁이 붙는 지지`;
+    if (n[0] === '天') return `월건 ${r.pillars.month[1]} 기준${n === '天馬' ? '(寅·申월 午, 卯·酉월 申, 辰·戌월 戌, 巳·亥월 子, 午·子월 寅, 未·丑월 辰)' : '(봄 戌, 여름 丑, 가을 辰, 겨울 未)'}`;
+    if (n === '羊刃') return `일간 ${dg}의 녹(${HK_ROK[dg]}) 기준, ${LR_INN[r.rules.inn]}`;
+    if ('祿德'.includes(n[1])) return `일간 ${dg} 기준`;
+    const z = n[0] === '歲' ? r.pillars.year[1] : dz;
+    return `${n[0] === '歲' ? '태세(연지)' : '일지'} ${z}의 삼합 ${HK_SAMHAP[z]} 기준`;
+  };
+  const ssName = n => { const [k, hj] = LR_SS[n] || LR_SS[n[1]]; return `${n[0] === '歲' ? '태세 ' : ''}${k}(${hj})`; };
+  const ssOf = z => (r.sinsal?.[z] || []).map(ssName).join(' · ');
+  const ssLine = z => on('ss') && r.sinsal?.[z] && h('div', 'lr-ss', ...r.sinsal[z].flatMap(n => [tip('', n, `${n} · ${ssName(n)}`, [
+    `${ssName(n)}: ${z} — ${ssBy(n)}.`, `뜻: ${(LR_SS[n] || LR_SS[n[1]])[2]}.`,
+    `신살은 천반 글자에 붙여 읽어요. 이 글자가 삼전·간상·지상에 오면 그 일에 이 성질이 붙는다고 봐요.`, '기준은 🔧 보정에서 바꿀 수 있어요.', short('lr-sinsal')],
+    ['lr-sinsal', { 馬: 'base-yeokma', 桃: 'base-dohwa', 華: 'base-hwagae' }[n[1]]]), ' ']));
+  const unLine = z => on('un') && tip('un', khs(r.un[z], UN_HJ[r.un[z]][0]), `12운성 ${r.un[z]}(${UN_HJ[r.un[z]][0]})`, [
+    `일간 ${dg} 기준, 천반 ${z} → ${r.un[z]}(${UN_HJ[r.un[z]][0]}).`,
+    r.rules.un === 'gan' ? '10간 기준(음간은 거꾸로 세는 명리 방식)으로 셌어요.' : `오행 기준으로 셌어요. 음양을 안 나누고 ${OH_KO[ohOf(dg)]} 오행의 장생 자리부터 순서대로 세요.`,
+    '기준은 🔧 보정에서 바꿀 수 있어요.', short('mr-12unseong')], ['mr-12unseong']);
+  const more = z => `천반 ${z}: 12운성 ${r.un[z]}(${UN_HJ[r.un[z]][0]})${ssOf(z) ? ` · 신살 ${ssOf(z)}` : ''}`; // 칸 통째 설명에
   const jiang = j => on('jiang') && tip('jg', jShort(j), `천장 ${j}(${JIANG_HJ[j]?.[0]})`, [short(JIANG_ID[j]), ...(TERMS.get(JIANG_ID[j])?.body || []).slice(0, 1)], [JIANG_ID[j], 'lr-cheonjang']);
   const dun = (d, z) => !on('dun') ? null : d
     ? tip('dun glyph', d, `둔간 ${d}`, [`${z}에 붙는 둔간이에요. 일진 ${r.day}의 순(旬) 안에서 이 지지와 짝이 되는 천간이에요.`, charInfo(d), short('lr-dungan')], ['lr-dungan'])
@@ -153,13 +181,14 @@ function drawLiuren(r, aiFor, show) {
   const sanRow = h('div', 'lr-row three', ...r.san.map(s => box('lr-box', [
     h('div', 't', s.name), dun(s.dun, s.zhi),
     h('div', 'up glyph', jiang(s.jiang), up(s.zhi)),
-    rel(s.rel, s.kong),
-  ], () => sanHint(s, r, aiFor?.(`san${s.name}`, `삼전 ${s.name}: ${s.dun || '-'}${s.zhi} (육친 ${s.rel}, 천장 ${s.jiang}${s.kong ? ', 공망' : ''})`)))));
+    rel(s.rel, s.kong), unLine(s.zhi), ssLine(s.zhi),
+  ], () => sanHint(s, r, more(s.zhi), aiFor?.(`san${s.name}`, `삼전 ${s.name}: ${s.dun || '-'}${s.zhi} (육친 ${s.rel}, 천장 ${s.jiang}${s.kong ? ', 공망' : ''})`)))));
   const keRow = h('div', 'lr-row four', ...r.ke.map(k => box('lr-box', [
     h('div', 't', `${'一二三四'[k.n - 1]}課`), dun(k.dun, k.up),
     h('div', 'up glyph', jiang(k.jiang), pairTip(`oh-cell ${ohCls(k.up)}`, k.up, k.up, k.down, k.jiang, k)),
     pairTip('down glyph', k.down, k.up, k.down, k.jiang, k),
-  ], () => keHint(k, r, aiFor?.(`ke${k.n}`, `사과 ${k.n}과: ${k.down} 위 ${k.up} (천장 ${k.jiang}, 둔간 ${k.dun || '-'})`)))));
+    rel(lrRel(dg, k.up), r.kong.includes(k.up)), unLine(k.up), ssLine(k.up),
+  ], () => keHint(k, r, more(k.up), aiFor?.(`ke${k.n}`, `사과 ${k.n}과: ${k.down} 위 ${k.up} (천장 ${k.jiang}, 둔간 ${k.dun || '-'})`)))));
   // 천지반: 위 巳午未申, 오른쪽 酉戌, 아래 亥子丑寅(오른쪽→왼쪽), 왼쪽 卯辰(아래→위)
   const pos = { 巳: [1, 1], 午: [1, 2], 未: [1, 3], 申: [1, 4], 酉: [2, 4], 戌: [3, 4], 亥: [4, 4], 子: [4, 3], 丑: [4, 2], 寅: [4, 1], 卯: [3, 1], 辰: [2, 1] };
   const plate = h('div', 'lr-plate');
@@ -168,9 +197,10 @@ function drawLiuren(r, aiFor, show) {
       dun(r.dunPlate[e], t),
       h('div', 'up glyph', jiang(r.jiang[t]), pairTip(`oh-cell ${ohCls(t)}`, t, t, e, r.jiang[t])),
       pairTip('down glyph', [e, e === r.shi ? h('span', 'tag', '점시') : null], t, e, r.jiang[t]),
+      rel(lrRel(dg, t), r.kong.includes(t)), unLine(t), ssLine(t),
     ], () => openHint(`지반 ${e} 위 천반 ${t}`, [
       `천반 ${charInfo(t)} · 천장 ${r.jiang[t]} · 둔간 ${r.dunPlate[e] || '없음(공망)'}`,
-      `일간 ${dg} 기준 육친: ${lrRel(dg, t)}`, e === r.shi ? '점시 자리예요.' : '',
+      `일간 ${dg} 기준 육친: ${lrRel(dg, t)}`, more(t), e === r.shi ? '점시 자리예요.' : '',
       short(JIANG_ID[r.jiang[t]]), aiFor?.(`plate${e}`, `천지반: 지반 ${e} 위 천반 ${t} (천장 ${r.jiang[t]}, 둔간 ${r.dunPlate[e] || '공망'}, 육친 ${lrRel(dg, t)})`),
     ].filter(Boolean), [JIANG_ID[r.jiang[t]], 'lr-cheonjiban', 'lr-yukchin']));
     b.style.gridRow = pos[e][0]; b.style.gridColumn = pos[e][1];
@@ -189,21 +219,21 @@ function drawLiuren(r, aiFor, show) {
   return h('div', 'board', meta, h('h3', '', '삼전'), sanRow, h('h3', '', '사과'), keRow, h('h3', '', '천지반'), plate,
     h('p', 'hint', '💡 글자마다 따로 눌러 볼 수 있어요(둔간 · 천장 · 천반 · 지반 · 육친). 칸의 빈 곳이나 이름(초전·一課)을 누르면 그 칸을 통째로 보여 줘요.'));
 }
-function sanHint(s, r, ai) {
+function sanHint(s, r, more, ai) {
   const what = { 초전: '일의 발단·시작', 중전: '일이 진행되는 과정', 말전: '일의 결말' }[s.name];
   openHint(`${s.name} ${s.dun}${s.zhi}`, [
     `${s.name}은 흔히 ${what}으로 읽어요.`,
-    `${charInfo(s.zhi)} · 천장 ${s.jiang} · 육친 ${s.rel}${s.dun ? ` · 둔간 ${s.dun}` : ''}`,
+    `${charInfo(s.zhi)} · 천장 ${s.jiang} · 육친 ${s.rel}${s.dun ? ` · 둔간 ${s.dun}` : ''}`, more,
     s.kong ? `일진 공망(${r.kong.join('')})에 들어요. 공망이면 허하거나 늦어진다고 보는 경우가 많아요.` : '',
     short(JIANG_ID[s.jiang]), ai,
   ].filter(Boolean), [s.name === '초전' ? 'lr-chojeon' : s.name === '중전' ? 'lr-jungjeon' : 'lr-maljeon', 'lr-samjeon'].filter(Boolean));
 }
-function keHint(k, r, ai) {
+function keHint(k, r, more, ai) {
   const g = (x, y) => GEUK[ohOf(x)] === ohOf(y);
   const rel = g(k.down, k.up) ? '아래가 위를 극해요(하적상).' : g(k.up, k.down) ? '위가 아래를 극해요(상극하).' : '서로 극하지 않아요.';
   const what = ['일간과 그 위(간상신)', '간상신과 그 위', '일지와 그 위(지상신)', '지상신과 그 위'][k.n - 1];
   openHint(`${k.n}과 ${k.up}/${k.down}`, [`${k.n}과는 ${what}예요. 1·2과는 나(일간), 3·4과는 상대·일(일지) 쪽으로 읽어요.`, `${k.up}(${OH_KO[ohOf(k.up)]}) / ${k.down}(${OH_KO[ohOf(k.down)]}) — ${rel}`,
-    `천장 ${k.jiang}${k.dun ? ` · 둔간 ${k.dun}` : ''}`, ai].filter(Boolean),
+    `천장 ${k.jiang}${k.dun ? ` · 둔간 ${k.dun}` : ''} · 육친 ${lrRel(r.day[0], k.up)}`, more, ai].filter(Boolean),
     ['lr-sagwa', k.n === 1 ? 'lr-gigung' : null, JIANG_ID[k.jiang], 'lr-jeokgeuk'].filter(Boolean));
 }
 

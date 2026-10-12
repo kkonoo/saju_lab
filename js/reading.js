@@ -11,6 +11,7 @@ function shiftHours(i, hours) {
   return { ...i, date: `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`, time: `${pad2(t.getHours())}:${pad2(t.getMinutes())}` };
 }
 const qmOpt = () => ({ ...timeOpt(), ju: prefs.qmJu, gods: prefs.qmGods }); // 기문 유파 설정(🔧 보정)
+const lrOpt = () => ({ ...timeOpt(), un: prefs.lrUn, ssBase: prefs.lrSsBase, inn: prefs.lrInn }); // 육임 12운성·신살 기준(🔧 보정)
 function field(label, input) { return h('label', 'field', label, input); }
 function inp(type, value, attrs = {}) { return Object.assign(h('input'), { type, value: value ?? '', ...attrs }); }
 function corrNote(p) {
@@ -149,16 +150,16 @@ function readLiuren(view) {
   const step = n => { Object.assign(i, shiftHours(i, n)); date.value = i.date; time.value = i.time; fresh(st); draw(); };
   function draw() {
     const dm = i.dayMode === 'auto' ? undefined : i.dayMode === 'day';
-    const r = liurenAt(...parseDT(i), timeOpt(), dm);
+    const r = liurenAt(...parseDT(i), lrOpt(), dm);
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `${fmtDT(i)} · ${r.day}일 ${r.pillars.hour}시`), h('span', 'grow'),
         aiButton('liuren', st, r), button('💾 저장', () => saveBoard(st, 'liuren', { ...i }, null, askName(i)), 'btn no-print')),
       askText(i) ? h('p', '', '❓ ', h('b', '', askText(i))) : null,
       h('p', 'hint', corrNote(r.pillars)),
-      chipRow('보기', LR_CHIPS, prefs.lrShow ||= { jiang: true, dun: true, rel: true }, draw),
+      chipRow('보기', LR_CHIPS, prefs.lrShow ||= { ...LR_SHOW_DEF }, draw),
       drawLiuren(r, (part, focus) => aiPart('liuren', st, r, part, focus), prefs.lrShow)),
       ...aiBox('liuren', st, r),
-      h('p', 'hint', '💡 칸을 누르면 천장·육친 뜻이 나와요. 주점/야점 자동은 卯~申시를 낮으로 봐요. 귀인 표·섭해 방식은 📘 개념에 적어 두었어요.'));
+      h('p', 'hint', '💡 칸을 누르면 천장·육친 뜻이 나와요. 주점/야점 자동은 卯~申시를 낮으로 봐요. 귀인 표·섭해 방식은 📘 개념에 적어 두었어요. 12운성·신살 기준은 🔧 보정에서 골라요.'));
   }
   view.replaceChildren(
     h('div', 'panel no-print',
@@ -663,28 +664,44 @@ const CALIB_NOTES = {
   qimen: ['연국(시가)기문 · 전반식. 중5궁은 곤2궁에 기궁.', '명국의 음력 생일은 천문연 음력표로 양력으로 바꿔요(윤달 포함).'],
   tarot: ['78장을 섞어 위에서부터 자리 수만큼 뽑아요.', '역방향을 쓰면 카드마다 반반 확률로 뒤집혀요.'],
 };
+// 유파·규칙 한 줄: 고르면 아래에 그 방식 설명
+function ruleRow(label, items, key, def, notes) {
+  const note = h('p', 'hint');
+  const show = v => { note.textContent = notes[v]; };
+  show(prefs[key] || def);
+  return h('div', 'calib-row', h('div', 'field', label, seg(items, prefs[key] || def, v => { prefs[key] = v; savePrefs(); show(v); })), note);
+}
 // 기문 유파·규칙 고르기 (보기·비교·저장한 판 모두 이 설정으로 다시 계산)
 function qimenRules() {
-  const row = (label, items, key, def, notes) => {
-    const note = h('p', 'hint');
-    const show = v => { note.textContent = notes[v]; };
-    show(prefs[key] || def);
-    return h('div', 'calib-row', h('div', 'field', label, seg(items, prefs[key] || def, v => { prefs[key] = v; savePrefs(); show(v); })), note);
-  };
   return h('div', 'panel', h('div', 'panel-head', h('h3', '', '🧭 기문 규칙')),
-    row('국 정하는 법', [['chaibo', '절기중심법 (拆補)'], ['zhirun', '초신접기 (置閏)']], 'qmJu', 'chaibo', {
+    ruleRow('국 정하는 법', [['chaibo', '절기중심법 (拆補)'], ['zhirun', '초신접기 (置閏)']], 'qmJu', 'chaibo', {
       chaibo: '그날이 든 절기와 그날의 부두(직전 甲·己일)로 상·중·하원을 정해요. 중국 연국 기문에서 흔한 방식이에요.',
       zhirun: '상원 부두부터 절기마다 15일씩 붙이고, 초신이 9일 이상 쌓이면 망종·대설에 윤국을 둬요. 한국 홍연기문 계열에서 많이 쓰고, 참고 앱과 같아요.' }),
-    row('양둔 팔신', [['hm', '백호·현무'], ['jj', '구진·주작']], 'qmGods', 'hm', {
+    ruleRow('양둔 팔신', [['hm', '백호·현무'], ['jj', '구진·주작']], 'qmGods', 'hm', {
       hm: '양둔·음둔 모두 직부 등사 태음 육합 백호 현무 구지 구천.',
       jj: '양둔은 직부 등사 태음 육합 구진 주작 구지 구천, 음둔은 백호·현무(陽遁用勾陳朱雀). 참고 앱과 같아요.' }),
     h('p', 'hint', '📖 용어: ', termChip('qm-chaibo'), ' ', termChip('qm-chosin'), ' ', termChip('qm-g-gujin')));
+}
+// 육임 12운성·신살 기준 (보기 판의 12운성·신살 칩에 씀)
+function liurenRules() {
+  return h('div', 'panel', h('div', 'panel-head', h('h3', '', '🌀 육임 12운성·신살')),
+    ruleRow('12운성', [['oh', '오행 기준'], ['gan', '10간 기준']], 'lrUn', 'oh', {
+      oh: '음양을 안 나누고 일간 오행의 장생 자리부터 순서대로 세요(乙도 甲처럼 亥에서 장생). 土는 火와 같이 寅에서 장생으로 봐요. 육임에서 흔히 써요.',
+      gan: '명리처럼 양간은 순행, 음간은 거꾸로 세요(乙은 午에서 장생). 土는 戊가 寅, 己가 酉에서 장생.' }),
+    ruleRow('역마·도화·화개·겁살·망신', [['day', '일지(日)'], ['both', '일지 + 태세(歲)']], 'lrSsBase', 'day', {
+      day: '일지의 삼합으로만 찾아요(日馬 등). 육임에서 가장 흔해요. 예: 일지가 申子辰이면 역마 寅, 도화 酉, 화개 辰, 겁살 巳, 망신 亥.',
+      both: '일지 삼합(日)에 그해 태세(연지) 삼합(歲)도 같이 놓아요. 기문 홍국 신살처럼 日·歲를 나눠 보여 줘요.' }),
+    ruleRow('양인(羊刃)', [['rok', '녹 앞 (10간)'], ['yang', '양간만'], ['back', '음간은 녹 뒤']], 'lrInn', 'rok', {
+      rok: '10간 모두 녹(祿)의 바로 앞 지지(甲 卯, 乙 辰, 丙·戊 午, 丁·己 未, 庚 酉, 辛 戌, 壬 子, 癸 丑). 육임·기문에서 흔해요.',
+      yang: '양간(甲丙戊庚壬)만 양인을 둬요(卯·午·午·酉·子). 자평 명리에서 흔해요.',
+      back: '음간은 녹의 바로 뒤 지지(乙 寅, 丁·己 巳, 辛 申, 癸 亥). 명리 일부 책의 방식이에요.' }),
+    h('p', 'hint', '일록·일덕·정마·천마·천희는 한 가지 표로만 봐요. 📖 용어: ', termChip('lr-sinsal'), ' ', termChip('mr-12unseong')));
 }
 function renderCalib(view, subj) {
   const rev = inp('checkbox', ''); rev.checked = prefs.tarotRev;
   rev.addEventListener('change', () => { prefs.tarotRev = rev.checked; savePrefs(); });
   view.replaceChildren(
-    subj === 'qimen' ? qimenRules() : '',
+    subj === 'qimen' ? qimenRules() : subj === 'liuren' ? liurenRules() : '',
     subj === 'tarot'
       ? h('div', 'panel', h('div', 'panel-head', h('h3', '', '🃏 뽑기')), h('label', 'check', rev, '역방향 카드 쓰기'))
       : h('div', 'panel', h('div', 'panel-head', h('h3', '', '⚙️ 공통 설정'), h('span', 'grow'), button('⚙️ 바꾸기', () => $('settingsBtn').click(), 'btn')),

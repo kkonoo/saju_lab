@@ -25,10 +25,33 @@ function lrRel(dayGan, c) {
   return '부모';
 }
 const lrGeuk = (x, y) => GEUK[ohOf(x)] === ohOf(y); // x가 y를 극
+
+// 12운성: opt.un 'oh' 오행 기준(음간도 같은 오행 양간처럼) | 'gan' 10간 기준(음간은 거꾸로, 명리와 같음)
+const lrUnseong = (dg, z, un = 'oh') => unseong(un === 'gan' ? dg : [...GAN].find(g => ohOf(g) === ohOf(dg) && isYangGan(g)), z);
+// 신살: 지지 → 이름들. 삼합·녹·천마 표는 qimen-engine.js의 HK_* (부를 때 씀)
+// opt.ssBase 'day' 일지만 | 'both' 일지 + 태세(연지) — 역마·겁살·망신·도화·화개
+// opt.inn 'rok' 녹 앞 한 자리(10간 모두) | 'yang' 양간만 | 'back' 음간은 녹 뒤 한 자리 — 양인
+const LR_DEOK = { 甲: '寅', 己: '寅', 乙: '申', 庚: '申', 丙: '巳', 辛: '巳', 丁: '亥', 壬: '亥', 戊: '巳', 癸: '巳' };
+const LR_HUI = { 寅: '戌', 卯: '戌', 辰: '戌', 巳: '丑', 午: '丑', 未: '丑', 申: '辰', 酉: '辰', 戌: '辰', 亥: '未', 子: '未', 丑: '未' }; // 천희: 봄 戌 여름 丑 가을 辰 겨울 未
+const LR_SS_ORDER = ['日祿', '日德', '羊刃', '日馬', '歲馬', '丁馬', '天馬', '天喜', '日桃', '歲桃', '日華', '歲華', '日劫', '歲劫', '日亡', '歲亡'];
+function lrSinsal(dayGz, pillars, opt = {}) {
+  const dg = dayGz[0], at = {}, put = (z, n) => (at[z] ||= []).push(n);
+  const rok = HK_ROK[dg], inn = isYangGan(dg) || (opt.inn || 'rok') === 'rok' ? 1 : opt.inn === 'back' ? -1 : 0;
+  put(rok, '日祿'); put(LR_DEOK[dg], '日德');
+  if (inn) put(JI[mod(JI.indexOf(rok) + inn, 12)], '羊刃');
+  for (const [w, z] of [['日', dayGz[1]], ...(opt.ssBase === 'both' && pillars ? [['歲', pillars.year[1]]] : [])]) {
+    const t = HK_SS_OF[HK_SAMHAP[z]];
+    put(t.馬, w + '馬'); put(t.年, w + '桃'); put(t.華, w + '華'); put(t.劫, w + '劫'); put(t.亡, w + '亡');
+  }
+  put([...JI].find(z => dunGan(dayGz, z) === '丁'), '丁馬');
+  if (pillars) { put(HK_CHEONMA[pillars.month[1]], '天馬'); put(LR_HUI[pillars.month[1]], '天喜'); }
+  for (const z in at) at[z].sort((a, b) => LR_SS_ORDER.indexOf(a) - LR_SS_ORDER.indexOf(b));
+  return at;
+}
 const lrYang = c => (GAN.includes(c) ? isYangGan(c) : isYangJi(c));
 
 /* dayGz: '己未', woljang: '辰', shi: '巳', day: true(주점)/false(야점) */
-function liurenCalc(dayGz, woljang, shi, day = true) {
+function liurenCalc(dayGz, woljang, shi, day = true, opt = {}) { // opt: 신살·12운성 기준(위), pillars(있으면 태세·월건 신살도)
   const dg = dayGz[0], dz = dayGz[1];
   const off = mod(JI.indexOf(woljang) - JI.indexOf(shi), 12);
   const up = e => JI[mod(JI.indexOf(e) + off, 12)];      // 지반 e 위의 천반
@@ -108,6 +131,8 @@ function liurenCalc(dayGz, woljang, shi, day = true) {
     ke: ke.map(k => ({ ...k, jiang: jiang[k.up], dun: dunGan(dayGz, k.up) })),
     san, method: r.method, how: r.how, kong, gui, guiOn, guiDir: fwd ? '순행' : '역행',
     dunPlate: Object.fromEntries([...JI].map(e => [e, dunGan(dayGz, plate[e])])),
+    un: Object.fromEntries([...JI].map(z => [z, lrUnseong(dg, z, opt.un)])), sinsal: lrSinsal(dayGz, opt.pillars, opt),
+    rules: { un: opt.un || 'oh', ssBase: opt.ssBase || 'day', inn: opt.inn || 'rok' },
   };
 }
 
@@ -119,5 +144,5 @@ function liurenAt(y, m, d, h, mi, opt = {}, dayMode) {
   for (let t = p.utc; !wj; t -= 5 * 86400000) { const j = lastJeolgi(t).prev; if (j.idx % 2 === 1) wj = j; }
   const shi = p.hour[1];
   const isDay = dayMode ?? '卯辰巳午未申'.includes(shi);
-  return { ...liurenCalc(p.day, LR_WOLJANG[wj.name], shi, isDay), pillars: p, junggi: wj.name, jeolgi: zg.name };
+  return { ...liurenCalc(p.day, LR_WOLJANG[wj.name], shi, isDay, { ...opt, pillars: p }), pillars: p, junggi: wj.name, jeolgi: zg.name };
 }
