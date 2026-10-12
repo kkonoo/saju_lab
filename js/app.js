@@ -7,7 +7,7 @@ const PKEY = 'saju-lab-prefs';
 const VERSION = 1;
 
 const SUBJECTS = [
-  { id: 'myeongri', name: '🀄 명리' }, { id: 'liuren', name: '🌀 육임' }, { id: 'qimen', name: '🧭 기문' },
+  { id: 'qimen', name: '🧭 기문' }, { id: 'liuren', name: '🌀 육임' }, { id: 'myeongri', name: '🀄 명리' },
   { id: 'tarot', name: '🃏 타로' }, { id: 'base', name: '🌱 기초' },
 ];
 const SUBS = [
@@ -16,7 +16,7 @@ const SUBS = [
 
 let db = { version: VERSION, recs: [] }, idb = null;
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
-let prefs = Object.assign({ theme: 'auto', fs: 1, correct: 'lon', lon: 127.5, yajasi: false, tarotRev: true, subj: 'myeongri', sub: 'read' }, readJSON(PKEY) || {});
+let prefs = Object.assign({ theme: 'auto', fs: 1, correct: 'lon', lon: 127.5, yajasi: false, tarotRev: true, subj: 'qimen', sub: 'read' }, readJSON(PKEY) || {});
 const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(prefs)); } catch { /* 저장 못 해도 화면은 그대로 */ } };
 const timeOpt = () => ({ correct: prefs.correct, lon: +prefs.lon || 127.5, yajasi: prefs.yajasi });
 
