@@ -55,6 +55,7 @@
 
   <dialog id="settingsDlg">
     <div class="dlg-head"><h2>⚙️ 설정</h2><button class="icon-btn small" data-close aria-label="닫기">✕</button></div>
+    <p class="hint">여러 과목에 같이 쓰는 설정이에요. 과목마다 다른 기준은 그 과목의 🔧 보정 탭에 있어요.</p>
     <section id="accountSection" hidden>
       <h3>👤 계정</h3>
       <p class="hint" id="accountInfo"></p>
@@ -69,10 +70,9 @@
       <p class="hint grow">127.5면 지금 한국 시계보다 30분 늦게 시(時)를 나눠요(자시 23:30~01:30). 서울만 보면 약 127.0이에요. 서머타임·옛 표준시는 자동으로 계산해요.</p>
     </div>
     <label class="check" style="margin-top:8px"><input type="checkbox" id="setYaja"> 야자시 쓰기 (23시~자정은 일주를 그날로)</label>
-    <h3>🃏 타로</h3>
-    <label class="check"><input type="checkbox" id="setRev"> 역방향 카드 쓰기</label>
-    <label class="field" style="margin-top:8px">Claude API 키<input id="setClaudeKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-..."></label>
-    <p class="hint">🤖 질문에 맞춰 읽기에 써요. Claude Console에서 만든 키를 넣어요. 이 브라우저에만 저장되고 로그인 동기화·백업 파일에는 안 들어가요. 쓰리 카드 한 번에 100원 안팎이 나가요.</p>
+    <h3>🤖 Claude</h3>
+    <label class="field">API 키<input id="setClaudeKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-..."></label>
+    <p class="hint">🃏 타로의 🤖 질문에 맞춰 읽기에 써요. Claude Console에서 만든 키를 넣어요. 이 브라우저에만 저장되고 로그인 동기화·백업 파일에는 안 들어가요. 쓰리 카드 한 번에 100원 안팎이 나가요.</p>
     <h3>🎨 화면</h3>
     <div class="row">
       <div class="seg" id="setTheme"><button data-v="auto">자동</button><button data-v="light">밝게</button><button data-v="dark">어둡게</button></div>

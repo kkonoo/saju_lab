@@ -11,8 +11,9 @@ const SUBJECTS = [
   { id: 'tarot', name: '🃏 타로' }, { id: 'base', name: '🌱 기초' },
 ];
 const SUBS = [
-  { id: 'read', name: '🔮 보기' }, { id: 'concepts', name: '📘 개념' }, { id: 'terms', name: '📖 용어' }, { id: 'cases', name: '🧩 사례' },
+  { id: 'read', name: '🔮 보기' }, { id: 'concepts', name: '📘 개념' }, { id: 'terms', name: '📖 용어' }, { id: 'cases', name: '🧩 사례' }, { id: 'calib', name: '🔧 보정' },
 ];
+const baseHas = sub => sub !== 'read' && sub !== 'calib'; // 기초에는 판이 없어 보기·보정 탭이 없음
 
 let db = { version: VERSION, recs: [] }, idb = null;
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -86,6 +87,7 @@ const TERMS = new Map(); // id → { ...term, subj }
 let contentError = null;
 const contentReady = Promise.all([
   fetch('data/jeolgi.json').then(r => r.json()).then(j => { JEOLGI = j; }),
+  fetch('data/lunar.json').then(r => r.json()).then(j => { LUNAR = j; }),
   ...SUBJECTS.map(s => fetch(`data/${s.id}.json`).then(r => r.json()).then(d => {
     CONTENT[s.id] = d;
     for (const t of d.terms) TERMS.set(t.id, { ...t, subj: s.id });
@@ -168,7 +170,7 @@ function readHash() {
   const [, subj, sub, item] = location.hash.split('/');
   const s = SUBJECTS.some(x => x.id === subj) ? subj : prefs.subj;
   let b = SUBS.some(x => x.id === sub) ? sub : prefs.sub;
-  if (s === 'base' && b === 'read') b = 'concepts';
+  if (s === 'base' && !baseHas(b)) b = 'concepts';
   route = { subj: s, sub: b, item: item || null };
   prefs.subj = s; prefs.sub = b; savePrefs();
 }
@@ -176,11 +178,11 @@ addEventListener('hashchange', () => { readHash(); render(); scrollTo(0, 0); });
 
 function renderNav() {
   $('subjNav').replaceChildren(...SUBJECTS.map(s => {
-    const b = button(s.name, () => go(s.id, s.id === 'base' && route.sub === 'read' ? 'concepts' : route.sub), '');
+    const b = button(s.name, () => go(s.id, s.id === 'base' && !baseHas(route.sub) ? 'concepts' : route.sub), '');
     b.classList.toggle('on', s.id === route.subj);
     return b;
   }));
-  $('subNav').replaceChildren(...SUBS.filter(x => !(route.subj === 'base' && x.id === 'read')).map(x => {
+  $('subNav').replaceChildren(...SUBS.filter(x => route.subj !== 'base' || baseHas(x.id)).map(x => {
     const b = button(x.id === 'read' && route.subj === 'tarot' ? '🔮 뽑기' : x.name, () => go(route.subj, x.id), '');
     b.classList.toggle('on', x.id === route.sub);
     return b;
@@ -192,6 +194,7 @@ function render() {
   const view = $('view');
   if (contentError) return view.replaceChildren(h('p', 'empty', '⚠️ 내용 파일을 못 읽었어요. 새로고침해 보세요.'));
   if (route.sub === 'read') renderReading(view, route.subj);
+  else if (route.sub === 'calib') renderCalib(view, route.subj);
   else renderLearn(view, route.subj, route.sub, route.item, focusId);
   focusId = null;
 }
@@ -266,13 +269,11 @@ $('settingsBtn').addEventListener('click', () => {
   $('lonRow').hidden = prefs.correct !== 'lon';
   $('setLon').value = prefs.lon;
   $('setYaja').checked = prefs.yajasi;
-  $('setRev').checked = prefs.tarotRev;
   $('setClaudeKey').value = prefs.claudeKey;
   $('settingsDlg').showModal();
 });
 $('setLon').addEventListener('change', e => { const v = +e.target.value; if (v >= 100 && v <= 150) { prefs.lon = v; savePrefs(); render(); } });
 $('setYaja').addEventListener('change', e => { prefs.yajasi = e.target.checked; savePrefs(); render(); });
-$('setRev').addEventListener('change', e => { prefs.tarotRev = e.target.checked; savePrefs(); });
 $('setClaudeKey').addEventListener('input', e => { prefs.claudeKey = e.target.value.trim(); savePrefs(); });
 $('exportBtn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify({ app: 'saju-lab', version: VERSION, recs: db.recs.filter(r => !r.deleted) }, null, 1)], { type: 'application/json' });

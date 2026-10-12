@@ -89,9 +89,26 @@ function dunGan(gz, zhi) {
   for (let j = 0; j < 10; j++) if (gz60(s + j)[1] === zhi) return gz60(s + j)[0];
   return '';
 }
+// 음력 → 양력 (data/lunar.json, 천문연 음력). { date: 'YYYY-MM-DD' } 또는 { err: 이유 }
+let LUNAR = null; // { from, rows: [[음력 1월 1일의 양력(1970-01-01부터 날 수), 윤달(0=없음), 달 길이 비트(윤달 포함 순서, 1=30일)]] }
+function lunarToSolar(y, m, d, leap = false) {
+  const row = LUNAR.rows[y - LUNAR.from];
+  if (!row) return { err: `음력은 ${LUNAR.from}~${LUNAR.from + LUNAR.rows.length - 1}년만 넣을 수 있어요.` };
+  const [start, lp, bits] = row;
+  if (!(m >= 1 && m <= 12)) return { err: '음력 월은 1~12로 넣어요.' };
+  if (leap && lp !== m) return { err: `음력 ${y}년에는 윤${m}월이 없어요 (${lp ? `그해 윤달은 윤${lp}월` : '그해는 윤달이 없어요'}).` };
+  const k = m - 1 + (lp && (m > lp || leap) ? 1 : 0); // 그해 몇 번째 달인지 (윤달 포함, 0부터)
+  const len = 29 + ((bits >> k) & 1);
+  if (!(d >= 1 && d <= len)) return { err: `음력 ${y}년 ${leap ? '윤' : ''}${m}월은 ${len}일까지예요.` };
+  let days = start + d - 1;
+  for (let j = 0; j < k; j++) days += 29 + ((bits >> j) & 1);
+  const t = new Date(days * 86400000);
+  return { date: `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}` };
+}
+
 function fmtUtc(ms) {
   const d = new Date(ms + 540 * 60000);
   return `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
-if (typeof module !== 'undefined') module.exports = { GAN, JI, ko, gz60, gzIndex, ohOf, isYangGan, isYangJi, SAENG, GEUK, OH_KO, fourPillars, lastJeolgi, xunOf, dunGan, seoulToUtc, fmtUtc, setJeolgi: j => (JEOLGI = j), mod, JEOLGI_NAMES };
+if (typeof module !== 'undefined') module.exports = { GAN, JI, ko, gz60, gzIndex, ohOf, isYangGan, isYangJi, SAENG, GEUK, OH_KO, fourPillars, lastJeolgi, xunOf, dunGan, seoulToUtc, fmtUtc, setJeolgi: j => (JEOLGI = j), mod, JEOLGI_NAMES, lunarToSolar, setLunar: j => (LUNAR = j) };

@@ -27,6 +27,36 @@ function savedNote(st) {
   return st.recName ? h('p', 'panel small', `📁 ${st.recName}`, st.recMemo ? h('span', 'muted', ` — ${st.recMemo}`) : null) : '';
 }
 
+// 생년월일 칸: 양력(날짜) / 음력(년·월·일 + 윤달). 음력은 양력으로 바꿔 i.date에 넣음 (판 계산은 양력·절기로)
+function birthDate(i) {
+  let cal = i.cal || 'solar';
+  const L = i.lunar || {};
+  const solar = inp('date', i.date, { min: '1900-02-05', max: '2100-12-31' });
+  const num = (v, ph, min, max) => inp('number', v, { placeholder: ph, min, max, inputMode: 'numeric' });
+  const ly = num(L.y, '년', 1900, 2100), lm = num(L.m, '월', 1, 12), ld = num(L.d, '일', 1, 30);
+  const leap = inp('checkbox', ''); leap.checked = !!L.leap;
+  const lunar = h('div', 'row', ly, lm, ld, h('label', 'check', leap, '윤달'));
+  const show = () => { solar.hidden = cal === 'lunar'; lunar.hidden = cal !== 'lunar'; };
+  show();
+  return {
+    el: h('div', 'field birth', h('div', 'row', '생년월일', seg([['solar', '양력'], ['lunar', '음력']], cal, v => { cal = v; show(); })), solar, lunar),
+    // 보기 버튼을 누를 때: 칸 값을 i로 옮기고, 못 바꾸면 이유를 돌려줌
+    read() {
+      i.cal = cal;
+      if (cal === 'solar') { i.date = solar.value; delete i.lunar; return ''; }
+      i.lunar = { y: +ly.value, m: +lm.value, d: +ld.value, leap: leap.checked };
+      if (!i.lunar.y || !i.lunar.m || !i.lunar.d) { i.date = ''; return '음력 년·월·일을 모두 넣어 주세요.'; }
+      const r = lunarToSolar(i.lunar.y, i.lunar.m, i.lunar.d, i.lunar.leap);
+      i.date = r.date || '';
+      return r.err || '';
+    },
+  };
+}
+const birthText = i => {
+  const s = `양력 ${i.date.replaceAll('-', '.')}`, L = i.lunar;
+  return i.cal === 'lunar' && L ? `음력 ${L.y}.${L.leap ? '윤' : ''}${pad2(L.m)}.${pad2(L.d)} (${s})` : s;
+};
+
 function renderReading(view, subj) {
   ({ myeongri: readMyeongri, liuren: readLiuren, qimen: readQimen, tarot: readTarot })[subj](view);
 }
@@ -35,17 +65,18 @@ function renderReading(view, subj) {
 function readMyeongri(view) {
   const st = READ.myeongri ||= { input: { date: '', time: '', male: true, unknownHour: false } };
   const i = st.input;
-  const date = inp('date', i.date, { min: '1900-02-05', max: '2100-12-31' }), time = inp('time', i.time);
+  const bd = birthDate(i), time = inp('time', i.time);
   const unk = inp('checkbox', ''); unk.checked = i.unknownHour;
   const sex = seg([[true, '남'], [false, '여']], i.male, v => { i.male = v; });
   const out = h('div');
   const run = () => {
-    i.date = date.value; i.time = time.value; i.unknownHour = unk.checked;
+    st.err = bd.read(); i.time = time.value; i.unknownHour = unk.checked;
     st.recName = null;
     draw();
   };
   function draw() {
-    if (!i.date) return out.replaceChildren(h('p', 'empty', '양력 생년월일과 태어난 시각을 넣고 원국 보기를 눌러요.'));
+    if (st.err) return out.replaceChildren(h('p', 'empty', `⚠️ ${st.err}`));
+    if (!i.date) return out.replaceChildren(h('p', 'empty', '생년월일(양력·음력)과 태어난 시각을 넣고 원국 보기를 눌러요.'));
     const [y, m, d] = i.date.split('-').map(Number);
     if (y < 1900 || y > 2100) return out.replaceChildren(h('p', 'empty', '1900~2100년만 계산할 수 있어요.'));
     const [hh, mm] = (i.unknownHour || !i.time ? '12:00' : i.time).split(':').map(Number);
@@ -53,18 +84,18 @@ function readMyeongri(view) {
     out.replaceChildren(
       savedNote(st),
       h('div', 'panel',
-        h('div', 'panel-head', h('h3', '', `${i.male ? '건명(남)' : '곤명(여)'} · 양력 ${i.date.replaceAll('-', '.')} ${i.unknownHour || !i.time ? '(시 모름)' : i.time}`), h('span', 'grow'),
+        h('div', 'panel-head', h('h3', '', `${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.unknownHour || !i.time ? '(시 모름)' : i.time}`), h('span', 'grow'),
           button('💾 저장', () => openSave('myeongri', { ...i }, null, ''), 'btn no-print')),
         h('p', 'hint', `절입: ${r.info.jeol.name} ${fmtUtc(r.info.jeol.utcMin * 60000)} · 다음 ${r.info.nextJeol.name} ${fmtUtc(r.info.nextJeol.utcMin * 60000)}`),
         i.unknownHour || !i.time ? null : h('p', 'hint', corrNote(r.info)),
-        i.unknownHour || !i.time ? null : h('p', '', button('🧭 같은 생일로 기문 명국 보기', () => { READ.qimenBirth = { input: { date: i.date, time: i.time, male: i.male } }; prefs.qmMode = 'birth'; savePrefs(); go('qimen', 'read'); }, 'link')),
+        i.unknownHour || !i.time ? null : h('p', '', button('🧭 같은 생일로 기문 명국 보기', () => { READ.qimenBirth = { input: { date: i.date, time: i.time, male: i.male, cal: i.cal, lunar: i.lunar } }; prefs.qmMode = 'birth'; savePrefs(); go('qimen', 'read'); }, 'link')),
         drawPillars(r)),
-      h('p', 'hint', '💡 글자나 칸을 누르면 뜻과 용어 설명이 나와요. 음력 생일은 아직 못 넣어요(양력으로 바꿔서 넣어 주세요).'),
+      h('p', 'hint', '💡 글자나 칸을 누르면 뜻과 용어 설명이 나와요.'),
     );
   }
   view.replaceChildren(
     h('div', 'panel no-print',
-      h('div', 'form-grid', field('생년월일 (양력)', date), field('태어난 시각', time), h('div', 'field', '성별', sex),
+      h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex),
         h('label', 'check', unk, '시 모름')),
       h('div', 'row', button('원국 보기', run, 'btn primary'))),
     out);
@@ -141,24 +172,25 @@ function readQimen(view) {
 function qimenBirth(top, out) {
   const st = READ.qimenBirth ||= { input: { date: '', time: '', male: true } };
   const i = st.input;
-  const date = inp('date', i.date, { min: '1900-02-05', max: '2100-12-31' }), time = inp('time', i.time);
+  const bd = birthDate(i), time = inp('time', i.time);
   const sex = seg([[true, '남'], [false, '여']], i.male, v => { i.male = v; });
   function draw() {
-    if (!i.date || !i.time) return out.replaceChildren(h('p', 'empty', '양력 생년월일과 태어난 시각을 넣고 명국 보기를 눌러요. 기문 명국은 시까지 있어야 해요.'));
+    if (st.err) return out.replaceChildren(h('p', 'empty', `⚠️ ${st.err}`));
+    if (!i.date || !i.time) return out.replaceChildren(h('p', 'empty', '생년월일(양력·음력)과 태어난 시각을 넣고 명국 보기를 눌러요. 기문 명국은 시까지 있어야 해요.'));
     const r = qimenAt(...parseDT(i), timeOpt());
     const p = r.pillars;
     out.replaceChildren(savedNote(st), h('div', 'panel',
-      h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · 양력 ${fmtDT(i)}`), h('span', 'grow'),
+      h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.time}`), h('span', 'grow'),
         button('💾 저장', () => openSave('qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
       h('p', '', h('b', 'glyph', `${p.year} ${p.month} ${p.day} ${p.hour}`), h('span', 'muted', ' (년 월 일 시)'), ' ',
-        button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false } }; go('myeongri', 'read'); }, 'link')),
+        button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false, cal: i.cal, lunar: i.lunar } }; go('myeongri', 'read'); }, 'link')),
       h('p', 'hint', corrNote(p)),
       drawQimen(r)),
       h('p', 'hint', '💡 연국기문 명반이에요. 태어난 시각의 시가 포국에 년·월·일·시가 놓인 궁을 표시해요. 홍국기문 명반(홍국수·세·행년·대운)은 아직 없어요.'));
   }
   top.append(
-    h('div', 'form-grid', field('생년월일 (양력)', date), field('태어난 시각', time), h('div', 'field', '성별', sex)),
-    h('div', 'row', button('명국 보기', () => { i.date = date.value; i.time = time.value; st.recName = null; draw(); }, 'btn primary')));
+    h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex)),
+    h('div', 'row', button('명국 보기', () => { st.err = bd.read(); i.time = time.value; st.recName = null; draw(); }, 'btn primary')));
   draw();
 }
 
@@ -207,7 +239,7 @@ function readTarot(view) {
     h('div', 'panel no-print',
       h('div', 'form-grid', h('div', 'field', '스프레드', seg(Object.entries(SPREADS).map(([k, v]) => [k, `${v.name} (${v.pos.length})`]), i.spread, v => { i.spread = v; }))),
       q, h('div', 'row', button('🃏 뽑기', draw, 'btn primary')),
-      h('p', 'hint', `78장에서 섞어 뽑아요. 역방향 ${prefs.tarotRev ? '켬' : '끔'} (⚙️에서 바꿔요).`)),
+      h('p', 'hint', `78장에서 섞어 뽑아요. 역방향 ${prefs.tarotRev ? '켬' : '끔'} (🔧 보정에서 바꿔요).`)),
     out);
   show();
 }
@@ -281,4 +313,27 @@ async function askClaude(st) {
   } finally {
     if (live()) { st.aiBusy = false; redraw(); }
   }
+}
+
+// ---------- 🔧 보정: 과목마다 다른 계산 기준 (여러 과목에 같이 쓰는 시각 보정·야자시는 ⚙️) ----------
+const CALIB_NOTES = {
+  myeongri: ['해는 입춘, 달은 절입(12절) 시각으로 나눠요.', '대운: 양남음녀 순행, 음남양녀 역행. 대운수 = 절입까지(역행은 지난 절입부터) 날 수 ÷ 3, 반올림(최소 1).',
+    '음력 생일은 천문연 음력표로 양력으로 바꿔서 계산해요(윤달 포함).'],
+  liuren: ['귀인: 甲戊庚 丑/未 · 乙己 子/申 · 丙丁 亥/酉 · 壬癸 卯/巳 · 辛 午/寅 (주점/야점).', '귀인이 앉은 지반이 亥~辰이면 순행, 巳~戌이면 역행.',
+    '섭해는 간편법(맹 → 중 → 양일은 간상·음일은 지상).', '주점·야점 "자동"은 卯~申시를 낮으로 봐요. 판마다 보기에서 바꿀 수 있어요.'],
+  qimen: ['연국(시가)기문 · 전반식.', '국 정하는 법: 절기중심법(拆補法) — 그날이 든 절기와 부두(직전 甲·己일)로 상·중·하원을 정해요. 초신접기법(置閏法)은 아직 없어요.',
+    '중5궁은 곤2궁에 기궁.', '팔신은 양둔·음둔 모두 직부 등사 태음 육합 백호 현무 구지 구천.', '명국의 음력 생일은 천문연 음력표로 양력으로 바꿔요(윤달 포함).'],
+  tarot: ['78장을 섞어 위에서부터 자리 수만큼 뽑아요.', '역방향을 쓰면 카드마다 반반 확률로 뒤집혀요.'],
+};
+function renderCalib(view, subj) {
+  const rev = inp('checkbox', ''); rev.checked = prefs.tarotRev;
+  rev.addEventListener('change', () => { prefs.tarotRev = rev.checked; savePrefs(); });
+  view.replaceChildren(
+    subj === 'tarot'
+      ? h('div', 'panel', h('div', 'panel-head', h('h3', '', '🃏 뽑기')), h('label', 'check', rev, '역방향 카드 쓰기'))
+      : h('div', 'panel', h('div', 'panel-head', h('h3', '', '⚙️ 공통 설정'), h('span', 'grow'), button('⚙️ 바꾸기', () => $('settingsBtn').click(), 'btn')),
+        h('p', '', `시각 ${prefs.correct === 'lon' ? `경도 ${prefs.lon}° 보정` : '보정 안 함'} · 야자시 ${prefs.yajasi ? '씀' : '안 씀'}`),
+        h('p', 'hint', '시각 보정·야자시는 명리·육임·기문에 같이 써서 ⚙️ 설정에 있어요.')),
+    h('div', 'panel', h('div', 'panel-head', h('h3', '', '📐 이 앱의 계산 기준')), h('ul', 'calib-notes', ...CALIB_NOTES[subj].map(n => h('li', '', n)))),
+  );
 }

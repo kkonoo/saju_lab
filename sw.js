@@ -6,7 +6,7 @@ const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/calendar.js', 'js/myeongri-engine.js', 'js/liuren-engine.js', 'js/qimen-engine.js',
   'js/boards.js', 'js/learn.js', 'js/reading.js', 'js/sync.js', 'js/firebase-config.js',
-  'data/jeolgi.json', 'data/base.json', 'data/myeongri.json', 'data/liuren.json', 'data/qimen.json', 'data/tarot.json',
+  'data/jeolgi.json', 'data/lunar.json', 'data/base.json', 'data/myeongri.json', 'data/liuren.json', 'data/qimen.json', 'data/tarot.json',
   'icons/app-192.png', 'icons/app-512.png', 'icons/app-maskable-192.png', 'icons/app-maskable-512.png',
 ];
 self.addEventListener('install', e => {

@@ -126,6 +126,11 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .board-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: calc(13px * var(--fs)); color: var(--muted); margin: 6px 0; }
 .board-meta b { color: var(--text); font-weight: 600; }
 .ai-text { white-space: pre-wrap; line-height: 1.7; }
+.birth { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; font-size: calc(12px * var(--fs)); color: var(--muted); }
+.birth input { color: var(--text); font-size: calc(14px * var(--fs)); }
+.birth input[type=number] { width: 4.6em; }
+.birth input[type=number]:first-child { width: 6.2em; }
+.calib-notes { margin: 0; padding-left: 1.2em; line-height: 1.7; }
 .kong { color: var(--bad); }
 .tag { display: inline-block; font-size: calc(10px * var(--fs)); padding: 0 5px; border-radius: 5px; background: var(--accent); color: var(--on-accent); line-height: 1.6; }
 .tag.bad { background: var(--bad); }
