@@ -137,6 +137,10 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .ask > summary { cursor: pointer; font-weight: 600; font-size: calc(14px * var(--fs)); }
 .ask > * + * { margin-top: 8px; }
 .ask .chips { margin: 0; }
+.cmp { width: 100%; border-collapse: collapse; font-size: calc(13px * var(--fs)); }
+.cmp th, .cmp td { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: left; vertical-align: top; }
+.cmp th { color: var(--muted); font-weight: 600; }
+.cmp tr.same td { color: var(--muted); }
 .kong { color: var(--bad); }
 .tag { display: inline-block; font-size: calc(10px * var(--fs)); padding: 0 5px; border-radius: 5px; background: var(--accent); color: var(--on-accent); line-height: 1.6; }
 .tag.bad { background: var(--bad); }

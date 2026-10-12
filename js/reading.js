@@ -20,6 +20,7 @@ function corrNote(p) {
 function openSavedRec(r) {
   const birth = r.kind === 'qimen' && r.input?.mode === 'birth';
   if (r.kind === 'qimen') { prefs.qmMode = birth ? 'birth' : 'now'; savePrefs(); }
+  if (r.kind === 'myeongri') { prefs.mrMode = 'one'; savePrefs(); }
   READ[birth ? 'qimenBirth' : r.kind] = { input: { ...r.input }, result: r.result, recName: r.name, recMemo: r.memo };
   go(r.kind, 'read');
 }
@@ -62,7 +63,20 @@ function renderReading(view, subj) {
 }
 
 // ---------- 명리 ----------
+function myeongriOf(i) {
+  const [y, m, d] = i.date.split('-').map(Number);
+  const [hh, mm] = (i.unknownHour || !i.time ? '12:00' : i.time).split(':').map(Number);
+  return myeongriAt(y, m, d, hh, mm, i.male, timeOpt(), i.unknownHour || !i.time);
+}
 function readMyeongri(view) {
+  const mode = prefs.mrMode === 'cmp' ? 'cmp' : 'one';
+  const modeRow = h('div', 'row', seg([['one', '👤 원국'], ['cmp', '⚖️ 저장한 판 비교']], mode, v => { prefs.mrMode = v; savePrefs(); render(); }));
+  if (mode === 'cmp') {
+    const top = h('div', 'panel no-print', modeRow), out = h('div');
+    out.style.marginTop = '12px';
+    view.replaceChildren(top, out);
+    return readCompare(top, out);
+  }
   const st = READ.myeongri ||= { input: { date: '', time: '', male: true, unknownHour: false } };
   const i = st.input;
   const bd = birthDate(i), time = inp('time', i.time);
@@ -77,10 +91,9 @@ function readMyeongri(view) {
   function draw() {
     if (st.err) return out.replaceChildren(h('p', 'empty', `⚠️ ${st.err}`));
     if (!i.date) return out.replaceChildren(h('p', 'empty', '생년월일(양력·음력)과 태어난 시각을 넣고 원국 보기를 눌러요.'));
-    const [y, m, d] = i.date.split('-').map(Number);
+    const y = +i.date.slice(0, 4);
     if (y < 1900 || y > 2100) return out.replaceChildren(h('p', 'empty', '1900~2100년만 계산할 수 있어요.'));
-    const [hh, mm] = (i.unknownHour || !i.time ? '12:00' : i.time).split(':').map(Number);
-    const r = myeongriAt(y, m, d, hh, mm, i.male, timeOpt(), i.unknownHour || !i.time);
+    const r = myeongriOf(i);
     out.replaceChildren(
       savedNote(st),
       h('div', 'panel',
@@ -95,7 +108,7 @@ function readMyeongri(view) {
     );
   }
   view.replaceChildren(
-    h('div', 'panel no-print',
+    h('div', 'panel no-print', modeRow,
       h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex),
         h('label', 'check', unk, '시 모름')),
       h('div', 'row', button('원국 보기', run, 'btn primary'))),
@@ -138,12 +151,13 @@ function readLiuren(view) {
 
 // ---------- 기문 ----------
 function readQimen(view) {
-  const mode = prefs.qmMode === 'now' ? 'now' : 'birth'; // 기본은 명국
-  const top = h('div', 'panel no-print', h('div', 'row', seg([['birth', '👤 명국 (생년월일시)'], ['now', '⏱ 시가 포국 (지금·점)']], mode, v => { prefs.qmMode = v; savePrefs(); render(); })));
+  const mode = ['now', 'cmp'].includes(prefs.qmMode) ? prefs.qmMode : 'birth'; // 기본은 명국
+  const top = h('div', 'panel no-print', h('div', 'row', seg([['birth', '👤 명국'], ['now', '⏱ 시가 포국'], ['cmp', '⚖️ 비교']], mode, v => { prefs.qmMode = v; savePrefs(); render(); })));
   const out = h('div');
   out.style.marginTop = '12px';
   view.replaceChildren(top, out);
   if (mode === 'birth') return qimenBirth(top, out);
+  if (mode === 'cmp') return readCompare(top, out);
   const st = READ.qimen ||= { input: { ...nowInput(), question: '' } };
   const i = st.input;
   const date = inp('date', i.date), time = inp('time', i.time);
@@ -182,7 +196,7 @@ function qimenBirth(top, out) {
       h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.time}`), h('span', 'grow'),
         aiButton('qimenBirth', st, r), button('💾 저장', () => openSave('qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
       h('p', '', h('b', 'glyph', `${p.year} ${p.month} ${p.day} ${p.hour}`), h('span', 'muted', ' (년 월 일 시)'), ' ',
-        button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false, cal: i.cal, lunar: i.lunar } }; go('myeongri', 'read'); }, 'link')),
+        button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false, cal: i.cal, lunar: i.lunar } }; prefs.mrMode = 'one'; savePrefs(); go('myeongri', 'read'); }, 'link')),
       h('p', 'hint', corrNote(p)),
       drawQimen(r)),
       ...aiBox('qimenBirth', st, r),
@@ -227,7 +241,7 @@ function readTarot(view) {
         allOpen ? button('💾 저장', () => openSave('tarot', { ...i, spreadName: SPREADS[i.spread].name }, st.result.map(({ hidden, ...c }) => c), askName(i)), 'btn no-print') : null),
       drawSpread(sp, k => { st.result[k].hidden = false; show(); })),
       ...(allOpen ? aiBox('tarot', st, st.result) : []),
-      allOpen ? h('p', 'hint', '💡 카드를 누르면 정방향·역방향 뜻과 그림 설명이 나와요.') : null);
+      allOpen ? h('p', 'hint', '💡 카드를 누르면 정방향·역방향 뜻과 그림 설명이 나와요.') : '');
   }
   view.replaceChildren(
     h('div', 'panel no-print',
@@ -363,6 +377,17 @@ const AI = { // 과목별: 버튼 이름, 읽는 법, 판 → 글, 질문 칸을
 - 일간이 든 궁(나)을 중심으로 그 궁의 팔문·구성·팔신·천반·지반을 짚고, 년·월·시 간지가 든 궁과의 관계, 직부·직사, 공망을 봐요.
 - 끝에 성향·강점·조심할 점을 정리해요.`,
     text: (i, r) => `${i.male ? '남(건명)' : '여(곤명)'} · ${birthText(i)} ${i.time}\n${qimenText(r)}` },
+  compare: { label: '비교해서 읽기',
+    sys: `명리·기문을 공부하는 사람이 저장한 판 둘(A, B)을 비교하려고 해요.
+- 같은 사람(생년월일시·성별이 같음)의 명리 원국과 기문 명국이면: 같은 사주를 두 체계가 어떻게 다르게 보는지 개념마다 짚어요(일간과 나의 자리, 오행·십신 대 궁의 팔문·구성·팔신, 공망을 일주 순과 시주 순으로 잡는 차이, 대운 등). 두 체계가 같은 말을 하는 곳과 엇갈리는 곳을 정리해요.
+- 다른 두 사람이면: 같은 항목끼리 나란히 놓고 공통점과 차이, 두 사람이 서로 어떻게 맞물리는지(일간·오행·합충, 기문이면 서로의 일간 궁)를 짚어요.
+- 같은 사람의 같은 판이면 그렇다고 말하고 그 판을 짧게 정리해요.`,
+    text: (i, pair) => {
+      const [x, y] = pair.map(({ rec }) => rec.input);
+      const same = x.date === y.date && x.time === y.time && x.male === y.male;
+      return [`같은 사람(생년월일시·성별 같음): ${same ? '예' : '아니오'}`, ...pair.map(({ rec, r }, k) =>
+        `[${'AB'[k]}: ${rec.name} · ${rec.kind === 'myeongri' ? '명리 원국' : '기문 명국'}]\n${rec.kind === 'myeongri' ? myeongriText(rec.input, r) : AI.qimenBirth.text(rec.input, r)}`)].join('\n\n');
+    } },
 };
 // 판 머리의 🤖 버튼(읽기 전에만)과 판 아래 결과 칸
 function aiButton(key, st, board) {
@@ -376,13 +401,13 @@ function aiBox(key, st, board) {
       h('div', 'panel-head', h('h3', '', st.aiBusy ? '🤖 Claude가 읽는 중…' : `🤖 ${AI[key].label}`), h('span', 'grow'),
         st.aiBusy ? null : button('🔄 다시', () => askClaude(key, st, board), 'btn no-print')),
       Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : i.ai), { id: 'aiText' })) : null,
-  ];
+  ].filter(Boolean); // replaceChildren에 null을 넘기면 "null" 글자가 찍힘
 }
 async function askClaude(key, st, board) {
   if (!prefs.claudeKey) { toast('⚙️ 설정에 Claude API 키를 넣어 주세요', 3000); $('settingsBtn').click(); return; }
   const conf = AI[key], i = st.input, gen = st.gen, ctrl = new AbortController();
   const live = () => READ[key] === st && st.gen === gen; // 판이 바뀌거나 다른 판을 열면 그만둠
-  const redraw = () => { if (route.sub === 'read' && route.subj === (key === 'qimenBirth' ? 'qimen' : key)) render(); };
+  const redraw = () => { if (route.sub === 'read') render(); };
   Object.assign(st, { aiBusy: true, aiText: '', aiErr: '' });
   redraw();
   try {
@@ -430,6 +455,53 @@ async function askClaude(key, st, board) {
   } finally {
     if (live()) { st.aiBusy = false; redraw(); }
   }
+}
+
+// ---------- ⚖️ 저장한 판 비교: 명리 원국·기문 명국 둘 (다른 사람끼리, 같은 사람의 명리↔기문도) ----------
+const isMr = rec => rec.kind === 'myeongri';
+const qmGungOf = (r, who) => +Object.keys(r.marks).find(n => r.marks[n].gan.includes(who)) || 0; // 년·월·일·시 천간이 든 궁
+const qmCell = (r, n) => { const c = r.palaces[n]; return n ? `${QM_GUNG[n]} · ${c.door || '-'} ${c.star || '-'} ${c.god || '-'} · 천반 ${c.heaven || '-'} 지반 ${c.earth || '-'}` : '—'; };
+const CMP_ROWS = [ // [이름, (저장한 판, 계산한 판) → 칸 글] — 두 칸 모두 '—'인 줄은 숨김
+  ['판', rec => isMr(rec) ? '🀄 명리 원국' : '🧭 기문 명국'],
+  ['이름', rec => rec.name],
+  ['생년월일시', rec => `${rec.input.male ? '남' : '여'} · ${birthText(rec.input)} ${rec.input.unknownHour ? '(시 모름)' : rec.input.time}`],
+  ['사주 (년 월 일 시)', (rec, r) => { const p = isMr(rec) ? r.info : r.pillars; return [p.year, p.month, p.day, rec.input.unknownHour ? '' : p.hour].filter(Boolean).join(' '); }],
+  ['일간', (rec, r) => { const g = isMr(rec) ? r.dayGan : r.pillars.day[0]; return `${g} (${OH_KO[ohOf(g)]})`; }],
+  ['공망', (rec, r) => `${r.kong.join('')} (${isMr(rec) ? '일주' : '시주'} 순)`],
+  ['오행 개수', (rec, r) => isMr(rec) ? Object.entries(r.count).map(([k, v]) => `${OH_KO[k]}${v}`).join(' ') : '—'],
+  ['천간 십신 (년·월·시)', (rec, r) => isMr(rec) ? r.pillars.filter(p => p.pos !== '일').map(p => p.ganSs).join(' · ') : '—'],
+  ['합충', (rec, r) => isMr(rec) ? r.relations.map(x => x.text).join(', ') || '없음' : '—'],
+  ['대운', (rec, r) => isMr(rec) ? `${r.forward ? '순행' : '역행'} · 대운수 ${r.daeunsu} · ${r.daeun.slice(0, 4).map(d => `${d.age}세 ${d.gz}`).join(' ')} …` : '—'],
+  ['국', (rec, r) => isMr(rec) ? '—' : `${r.term} ${r.yuan} · ${r.dun} ${r.ju}국`],
+  ['일간 궁 (나)', (rec, r) => isMr(rec) ? '—' : qmCell(r, qmGungOf(r, '일'))],
+  ['시간 궁', (rec, r) => isMr(rec) ? '—' : qmCell(r, qmGungOf(r, '시'))],
+  ['직부 · 직사', (rec, r) => isMr(rec) ? '—' : `${r.zhifu} → ${QM_GUNG[r.zhifuTo]} · ${r.zhishi} → ${QM_GUNG[r.zhishiTo]}`],
+];
+function readCompare(top, out) {
+  const st = READ.compare ||= { input: {} };
+  const i = st.input;
+  const recs = db.recs.filter(r => !r.deleted && (isMr(r) || (r.kind === 'qimen' && r.input?.mode === 'birth'))).sort((a, b) => b.updatedAt - a.updatedAt);
+  if (recs.length < 2) return out.replaceChildren(h('p', 'empty', `명리 원국이나 기문 명국을 💾 저장해 두면 둘을 골라 표로 비교할 수 있어요. (지금 ${recs.length}개)`));
+  if (!recs.some(r => r.id === i.a)) i.a = recs[0].id;
+  if (!recs.some(r => r.id === i.b)) i.b = recs.find(r => r.id !== i.a).id;
+  const sel = key => {
+    const s = h('select', '', ...recs.map(r => Object.assign(h('option', '', `${KIND_NAME[r.kind].split(' ')[0]} ${r.name} · ${savedSummary(r)}`), { value: r.id })));
+    s.value = i[key];
+    s.addEventListener('change', () => { i[key] = s.value; fresh(st); draw(); });
+    return s;
+  };
+  function draw() {
+    const pair = [i.a, i.b].map(id => { const rec = recs.find(r => r.id === id); return { rec, r: isMr(rec) ? myeongriOf(rec.input) : qimenAt(...parseDT(rec.input), timeOpt()) }; });
+    const rows = CMP_ROWS.map(([label, f]) => [label, ...pair.map(x => f(x.rec, x.r))]).filter(([, a, b]) => a !== '—' || b !== '—');
+    out.replaceChildren(h('div', 'panel',
+      h('div', 'panel-head', h('h3', '', '⚖️ A · B 비교'), h('span', 'grow'), aiButton('compare', st, pair)),
+      h('table', 'cmp', h('tr', '', h('th', ''), h('th', '', 'A'), h('th', '', 'B')),
+        ...rows.map(([label, a, b]) => h('tr', a === b ? 'same' : '', h('th', '', label), h('td', '', a), h('td', '', b))))),
+      ...aiBox('compare', st, pair),
+      h('p', 'hint', '💡 흐린 줄은 A와 B가 같은 줄이에요. 기문 명국의 대운·소운은 아직 없어요.'));
+  }
+  top.append(h('div', 'form-grid', field('A', sel('a')), field('B', sel('b'))));
+  draw();
 }
 
 // ---------- 🔧 보정: 과목마다 다른 계산 기준 (여러 과목에 같이 쓰는 시각 보정·야자시는 ⚙️) ----------
