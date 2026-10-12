@@ -44,7 +44,7 @@
 
 ### 구글 로그인 켜기
 
-1. [Firebase 콘솔](https://console.firebase.google.com/)에서 새 프로젝트 → 웹 앱 추가 → 나오는 설정값을 `js/firebase-config.js`의 `null` 자리에 붙여 넣어요.
+1. Firebase 프로젝트는 `saju-lab-29`예요. 설정값은 `js/firebase-config.js`에 들어 있어요(다른 프로젝트로 바꿀 때만 고쳐요).
 2. Authentication → Sign-in method → Google 사용, 승인된 도메인에 `kkonoo.github.io` 추가.
 3. Firestore Database 만들기 → 규칙 탭에 `firestore.rules` 내용을 붙여 넣고 게시.
 
