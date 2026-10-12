@@ -211,6 +211,23 @@ const HK_REL_MEAN = { // [남자, 여자] — 유파마다 조금씩 달라요
   財: ['아내·재물 (아버지로 보기도)', '재물·시어머니 (아버지로 보기도)'], 官: ['직장·명예·윗사람 (딸로 보기도)', '남편·직장·명예'],
   鬼: ['질병·관재·경쟁자 (아들로 보기도)', '애인(남편 아닌 남자)·질병·관재'], 父: ['부모·윗사람·문서·학업', '부모·윗사람·문서·학업'], 世: ['나 자신', '나 자신'] };
 const HK_REL_WHY = { 兄: '같은 오행', 孫: '내가 생하는 오행', 財: '내가 극하는 오행', 官: '나를 극하고 음양이 다른 것', 鬼: '나를 극하고 음양이 같은 것', 父: '나를 생하는 오행' };
+const HK_YUK_STEP = { 兄: 0, 世: 0, 孫: 1, 財: 2, 官: 3, 鬼: 3, 父: 4 };
+const HK_YUK_SAENG = { // 생하는 쪽 → [이름, 뜻]
+  0: ['비겁생식(比劫生食)', '나·형제의 힘이 재주·표현·자녀로 흘러가요'], 1: ['식상생재(食傷生財)', '재주·표현이 재물로 이어져요'],
+  2: ['재생관(財生官)', '재물이 직장·명예(鬼면 관재·병)를 키워요'], 3: ['관인상생(官印相生)', '직장·윗사람이 문서·도움·공부로 이어져요'], 4: ['인수생신(印綬生身)', '문서·윗사람의 도움이 나를 받쳐 줘요'] };
+const HK_YUK_GEUK = { // 극하는 쪽 → [이름, 뜻]
+  0: ['비겁극재(比劫剋財)', '나·형제가 재물을 다투거나 쥐려 해요(世면 내가 재물을 다스림)'], 1: ['식상극관(食傷剋官)', '재주·말이 직장·윗사람과 부딪혀요(鬼를 누르면 흉을 막음)'],
+  2: ['재극인(財剋印)', '재물 일이 문서·공부·윗사람을 흔들어요'], 3: ['관살극신(官殺剋身)', '직장·책임(鬼면 병·관재·경쟁)이 나·형제를 눌러요'], 4: ['인극식(印剋食)', '문서·윗사람이 재주·표현·자녀를 막아요(도식)'] };
+const bat = r => (HK_REL_KO[r].charCodeAt(0) - 0xAC00) % 28 !== 0; // 육친 읽는 소리에 받침이 있나(관·손·형 / 재·부·귀·세) — 조사 고르기
+function hkYukPair(u, l) { // 위 u, 아래 l
+  const a = HK_YUK_STEP[u], b = HK_YUK_STEP[l];
+  if (a === b) return { name: '비화(比和)', text: `둘이 같은 오행이라 기운을 보태요(겹침).` };
+  const say = (t, from, to, dir) => ({ name: t[0], text: `${dir} ${from}${bat(from) ? '이' : '가'} ${to}${bat(to) ? '을' : '를'} ${t === HK_YUK_SAENG[HK_YUK_STEP[from]] ? '생' : '극'}해요 → ${t[0]}: ${t[1]}.` });
+  if ((a + 1) % 5 === b) return say(HK_YUK_SAENG[a], u, l, '위의');
+  if ((b + 1) % 5 === a) return say(HK_YUK_SAENG[b], l, u, '아래의');
+  if ((a + 2) % 5 === b) return say(HK_YUK_GEUK[a], u, l, '위의');
+  return say(HK_YUK_GEUK[b], l, u, '아래의');
+}
 const HK_GUK_KO = { 和局: '화국', 戰局: '전국', 沖局: '충국', 怨嗔局: '원진국', 刑破害局: '형파해국' };
 const HK_GUK_MEAN = { 和局: '천반·지반이 서로 생하거나 같은 기운이라 순하게 흘러요.', 戰局: '천반·지반이 음양이 다른 채로 서로 극해서(가극) 부딪히고 바뀌는 판으로 봐요.',
   沖局: '천반·지반이 같은 음양끼리 극하거나(진극) 지지로 충이라 부딪힘·이동이 큰 판으로 봐요.', 怨嗔局: '천반·지반 지지가 원진이라 원망·애증이 얽히는 판으로 봐요.',
@@ -238,11 +255,17 @@ function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 
     `어떻게 나왔나: 천반은 천간수 합 ${hk.sumG} → 중궁 ${hk.ch}${p === 5 ? '' : `에서 궁 번호 ${p}를 빼고`}, 지반은 지지수 합 ${hk.sumJ} → 중궁 ${hk.ce}${p === 5 ? '' : `에 궁 번호 ${p}를 더해`} 일의 자리만 써요(0은 十).`,
     x.heaven === 10 || x.earth === 10 ? `십(十)은 형충은 보지 않고, 대운 햇수를 셀 때는 빠진 수(천반 ${hk.missH || '-'}, 지반 ${hk.missE || '-'})의 몫을 해요.` : '', short('qm-hk-pair')];
   const num = n => tip(`hk-num oh-tile oh-${HK_OH(n)}`, HK_HAN[n], `홍국수 짝 ${HK_HAN[x.heaven]}·${HK_HAN[x.earth]} — ${pr.kind}`, pairLines, ['qm-hk-pair', 'qm-hk-su', x.label ? 'qm-hk-rel' : null]);
-  const rel = (rl, n) => tip(`hk-rel${rl === '世' ? ' se' : ''}`, rl, `${HK_REL_KO[rl]}(${rl}) — ${HK_REL_NAME[rl]}`, [
-    rl === '世' ? `일지 ${ko(hk.dayJi)}(${hk.dayJi})가 속한 궁이라 세(世), 나의 자리예요. 육친은 모두 世의 지반수 ${HK_HAN[hk.seNum]}(${OH_KO[sOh]})를 기준으로 봐요.`
-      : `世의 지반수 ${HK_HAN[hk.seNum]}(${OH_KO[sOh]}·${yinyang(hk.seNum)}) 기준으로 ${HK_HAN[n]}(${OH_KO[HK_OH(n)]}·${yinyang(n)})는 ${HK_REL_WHY[rl]}라 ${HK_REL_KO[rl]}(${rl})예요.`,
-    `${hk.male ? '남자' : '여자'}에게는 ${HK_REL_MEAN[rl][g]}`, rl === '世' ? '' : `(${hk.male ? '여자' : '남자'}라면 ${HK_REL_MEAN[rl][1 - g]}) 유파마다 조금씩 달라요.`],
-    [rl === '世' ? 'qm-hk-se' : 'qm-hk-yuk', rl === '世' ? null : 'base-yukchin']);
+  // 위(천반)·아래(지반) 육친도 한 쌍: 어느 쪽을 눌러도 둘의 뜻과 둘 사이의 생극을 함께
+  const relLine = (rl, n, side) => `${side} ${HK_REL_KO[rl]}(${rl}) — ${HK_REL_NAME[rl]}. ${rl === '世'
+    ? `일지 ${ko(hk.dayJi)}(${hk.dayJi})가 속한 궁이라 나의 자리예요(육친은 모두 世의 지반수 ${HK_HAN[hk.seNum]}(${OH_KO[sOh]}·${yinyang(hk.seNum)}) 기준).`
+    : `${HK_HAN[n]}(${OH_KO[HK_OH(n)]}·${yinyang(n)})는 世 기준 ${HK_REL_WHY[rl]}. ${hk.male ? '남자' : '여자'}에게는 ${HK_REL_MEAN[rl][g]}.`}`;
+  const yp = hkYukPair(x.relH, x.relE);
+  const relLines = [relLine(x.relH, x.heaven, '위(천반)'), relLine(x.relE, x.earth, '아래(지반)'), `둘 사이: ${yp.text}`,
+    x.relE === '世' ? `世 위에 ${HK_REL_KO[x.relH]}(${x.relH})${bat(x.relH) ? '을' : '를'} 얹은 자리예요. 홍국에서는 世 위에 무엇이 얹혔는지(예: 父를 얹으면 인수를 머리에 인 것)를 특히 중요하게 봐요.` : '',
+    '위는 천반이라 겉으로 드러난 일·바깥·상대 쪽, 아래는 지반이라 속·바탕·내 쪽으로 읽는 경우가 많아요. 유파마다 조금씩 달라요.',
+    `${hk.male ? '여자' : '남자'}라면 뜻이 달라져요: ${[...new Set([x.relH, x.relE])].filter(r => r !== '世').map(r => `${r} ${HK_REL_MEAN[r][1 - g]}`).join(' · ') || '—'}`];
+  const rel = rl => tip(`hk-rel${rl === '世' ? ' se' : ''}`, rl, `육친 짝 ${x.relH}·${x.relE} — ${yp.name}`, relLines,
+    ['qm-hk-yuk', 'base-yukchin', x.relE === '世' ? 'qm-hk-se' : null]);
   const du = (a, side) => (on('daeun') && hv.won && a ? tip('hk-du', `${a[0]}~${a[1]}`, `대운(大運) ${a[0]}~${a[1]}세 · ${side}반`, [
     `1~45세는 세(世) 궁(${QM_GUNG[hk.se]})부터 낙서 순서로 차례로 돌며 지반수만큼, 46~90세는 다시 世 궁부터 거꾸로 돌며 천반수만큼 해를 나눠요(남녀 같음).`,
     `십(十)은 빠진 수만큼(천반 ${hk.missH || '-'}, 지반 ${hk.missE || '-'}), 아홉 궁을 다 돌면 1+2+…+9 = 45년이에요.`, short('qm-hk-daeun')], ['qm-hk-daeun']) : '');
@@ -274,7 +297,7 @@ function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 
     x.label ? `${relKo(x.label)}(${x.label})` : '', x.sinsal.length ? `신살 ${x.sinsal.map(s => `${s.fu ? '복' : ''}${ssKo(s.name)}(${s.fu ? '伏' : ''}${s.name})`).join(' · ')}` : '',
     hv.years?.[p] ? `${hv.years[p]}년 소운이 이 궁` : '', hv.months?.[p]?.length ? `음력 ${hv.months[p].join('·')}월이 이 궁` : ''].filter(Boolean);
   const focus = `홍국 천반수 ${x.heaven}(${x.relH}) 지반수 ${x.earth}(${x.relE})${hv.won ? ` 대운 ${x.daeun.heaven.join('~')}/${x.daeun.earth.join('~')}세` : ''}${x.yunyeon ? ` ${x.yunyeon}` : ''}${x.label ? ` ${x.label}` : ''}${x.sinsal.length ? ` 신살 ${x.sinsal.map(s => (s.fu ? '伏' : '') + s.name).join(' ')}` : ''}`;
-  return { x, numH: num(x.heaven), numE: num(x.earth), relH: rel(x.relH, x.heaven), relE: rel(x.relE, x.earth),
+  return { x, numH: num(x.heaven), numE: num(x.earth), relH: rel(x.relH), relE: rel(x.relE),
     duH: du(x.daeun?.heaven, '천'), duE: du(x.daeun?.earth, '지'), yun, un, lab, ss, ages, top: [yr, mo].filter(Boolean), kong, lines, focus };
 }
 // 4칸 짜리 격자(왼쪽 작은 글자 | 홍국수 | 연국 천간 | 오른쪽 작은 글자), 빈 줄·빈 칸은 접음.
