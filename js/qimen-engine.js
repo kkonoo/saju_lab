@@ -1,0 +1,67 @@
+'use strict';
+// 연국(시가) 기문둔갑 포국 — 전반(轉盤)식, 국수는 절기 + 부두(拆補法), 중5궁은 곤2궁에 기궁
+// 홍국기문(홍국수·세·행년)은 아직 없음
+
+const QM_YI = '戊己庚辛壬癸丁丙乙'; // 삼기육의 배치 순서
+const QM_STAR = { 1: '천봉', 2: '천예', 3: '천충', 4: '천보', 5: '천금', 6: '천심', 7: '천주', 8: '천임', 9: '천영' };
+const QM_DOOR = { 1: '휴문', 2: '사문', 3: '상문', 4: '두문', 6: '개문', 7: '경문(驚)', 8: '생문', 9: '경문(景)' };
+const QM_RING = [1, 8, 3, 4, 9, 2, 7, 6]; // 시계 방향: 감 간 진 손 리 곤 태 건
+const QM_GOD = ['직부', '등사', '태음', '육합', '백호', '현무', '구지', '구천'];
+const QM_XUN_YI = { 子: '戊', 戌: '己', 申: '庚', 午: '辛', 辰: '壬', 寅: '癸' };
+const QM_GUNG = { 1: '감1궁(북)', 2: '곤2궁(남서)', 3: '진3궁(동)', 4: '손4궁(남동)', 5: '중5궁', 6: '건6궁(북서)', 7: '태7궁(서)', 8: '간8궁(북동)', 9: '리9궁(남)' };
+// 절기별 상·중·하원 국수 (양둔: 동지~망종, 음둔: 하지~대설)
+const QM_JU = {
+  동지: [1, 7, 4], 소한: [2, 8, 5], 대한: [3, 9, 6], 입춘: [8, 5, 2], 우수: [9, 6, 3], 경칩: [1, 7, 4],
+  춘분: [3, 9, 6], 청명: [4, 1, 7], 곡우: [5, 2, 8], 입하: [4, 1, 7], 소만: [5, 2, 8], 망종: [6, 3, 9],
+  하지: [9, 3, 6], 소서: [8, 2, 5], 대서: [7, 1, 4], 입추: [2, 5, 8], 처서: [1, 4, 7], 백로: [9, 3, 6],
+  추분: [7, 1, 4], 한로: [6, 9, 3], 상강: [5, 8, 2], 입동: [6, 9, 3], 소설: [5, 8, 2], 대설: [4, 7, 1],
+};
+const QM_YANG_TERMS = '동지 소한 대한 입춘 우수 경칩 춘분 청명 곡우 입하 소만 망종'.split(' ');
+
+function qimenCalc(yang, ju, shiGz) {
+  const earth = {};
+  [...QM_YI].forEach((s, i) => { earth[yang ? mod(ju - 1 + i, 9) + 1 : mod(ju - 1 - i, 9) + 1] = s; });
+  const sg = shiGz[0], sz = shiGz[1];
+  const xun = xunOf(shiGz).start; // 예: 甲子
+  const fuYi = QM_XUN_YI[xun[1]];
+  const fuPalace = +Object.keys(earth).find(p => earth[p] === fuYi);
+  const starFrom = fuPalace === 5 ? 2 : fuPalace;
+  const target = sg === '甲' ? fuYi : sg;
+  let tp = +Object.keys(earth).find(p => earth[p] === target);
+  if (tp === 5) tp = 2;
+  const shift = mod(QM_RING.indexOf(tp) - QM_RING.indexOf(starFrom), 8);
+  const heaven = {}, stars = {};
+  for (const p of QM_RING) {
+    const np = QM_RING[(QM_RING.indexOf(p) + shift) % 8];
+    stars[np] = QM_STAR[p] + (p === 2 ? '·천금' : '');
+    heaven[np] = earth[p] + (p === 2 ? earth[5] : '');
+  }
+  // 직사: 순수 甲의 시지부터 지금 시지까지 k시진, 낙서 숫자 순서로(양둔 +, 음둔 −)
+  const k = mod(JI.indexOf(sz) - JI.indexOf(xun[1]), 12);
+  let dp = fuPalace;
+  for (let i = 0; i < k; i++) dp = yang ? (dp % 9) + 1 : mod(dp - 2, 9) + 1;
+  if (dp === 5) dp = 2;
+  const dshift = mod(QM_RING.indexOf(dp) - QM_RING.indexOf(starFrom), 8);
+  const doors = {};
+  for (const p of QM_RING) doors[QM_RING[(QM_RING.indexOf(p) + dshift) % 8]] = QM_DOOR[p];
+  const gods = {}, start = QM_RING.indexOf(tp);
+  QM_GOD.forEach((g, j) => { gods[QM_RING[mod(start + (yang ? j : -j), 8)]] = g; });
+  const palaces = {};
+  for (let p = 1; p <= 9; p++) palaces[p] = { earth: earth[p], heaven: heaven[p] || '', star: stars[p] || '', door: doors[p] || '', god: gods[p] || '' };
+  return {
+    type: 'qimen', dun: yang ? '양둔' : '음둔', ju, shi: shiGz, xun, fuYi, fuPalace,
+    zhifu: QM_STAR[fuPalace], zhishi: QM_DOOR[starFrom], zhifuTo: tp, zhishiTo: dp, steps: k,
+    kong: xunOf(shiGz).kong, palaces,
+  };
+}
+
+// 날짜·시각 → 국수 정하고 포국
+function qimenAt(y, m, d, h, mi, opt = {}) {
+  const p = fourPillars(y, m, d, h, mi, opt);
+  const term = p.jeolgi.name;
+  const di = gzIndex(p.day), futou = gz60(di - (di % 5)); // 부두: 직전 甲·己일
+  const yuan = '子午卯酉'.includes(futou[1]) ? 0 : '寅申巳亥'.includes(futou[1]) ? 1 : 2;
+  const yang = QM_YANG_TERMS.includes(term);
+  const ju = QM_JU[term][yuan];
+  return { ...qimenCalc(yang, ju, p.hour), pillars: p, term, futou, yuan: ['상원', '중원', '하원'][yuan] };
+}
