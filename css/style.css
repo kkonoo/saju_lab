@@ -265,15 +265,15 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .slot .num { font-weight: 700; }
 .slot.next { border: 1px solid var(--accent); color: var(--text); }
 .slot.filled { border-style: solid; background: var(--accent-soft); color: var(--text); }
-.deck { display: flex; flex-wrap: wrap; justify-content: center; row-gap: 14px; padding: 10px 0 4px 22px; }
-.deck .dk { width: 46px; height: 74px; margin-left: -22px; padding: 0; border-radius: 6px; cursor: pointer; color: var(--on-accent); font-weight: 700; font-size: 15px;
-  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: -2px 1px 4px rgb(0 0 0 / .25);
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent) 0 5px, transparent 6px), repeating-linear-gradient(45deg, var(--accent-soft) 0 4px, var(--surface-2) 4px 8px);
-  transform: rotate(var(--r)); transition: transform .15s ease; }
-.deck .dk:hover, .deck .dk:focus-visible { transform: translateY(-10px) rotate(var(--r)); outline: none; border-color: var(--accent); }
-.deck .dk.taken { transform: translateY(10px) rotate(var(--r)); background: var(--accent); opacity: .35; cursor: default; } /* 고른 카드는 판에서 빠진 듯 흐리게 */
-.deck.deal .dk { animation: deal .4s ease backwards; animation-delay: calc(var(--i) * 7ms); }
-@keyframes deal { from { opacity: 0; transform: translate(-30px, -16px) rotate(-8deg); } }
+.deck { position: relative; height: 145px; width: 100%; max-width: calc(var(--n) * 60px + 40px); margin: 0 auto; } /* 부채꼴: 가운데가 높고 양끝이 기울어짐 */
+.deck .dk { position: absolute; bottom: 22px; left: calc(20px + (100% - 98px) * var(--x)); width: 58px; height: 92px; padding: 0; border-radius: 7px; cursor: pointer; color: var(--on-accent); font-weight: 700; font-size: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: -2px 1px 5px rgb(0 0 0 / .25);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent) 0 6px, transparent 7px), repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-2) 5px 10px);
+  transform-origin: 50% 100%; transform: translateY(var(--dy)) rotate(var(--rot)); transition: transform .15s ease; }
+.deck .dk:hover, .deck .dk:focus-visible { transform: translateY(calc(var(--dy) - 16px)) rotate(var(--rot)); outline: none; border-color: var(--accent); }
+.deck .dk.taken { transform: translateY(calc(var(--dy) + 8px)) rotate(var(--rot)); background: var(--accent); opacity: .35; cursor: default; } /* 고른 카드는 판에서 빠진 듯 흐리게 */
+.deck.deal .dk { animation: deal .45s ease backwards; animation-delay: calc(var(--i) * 45ms); }
+@keyframes deal { from { opacity: 0; transform: translateY(40px) rotate(0); } }
 @media (prefers-reduced-motion: reduce) { .deck.deal .dk { animation: none; } .deck .dk { transition: none; } }
 .suit-major { --c: var(--accent); } .suit-w { --c: var(--fire); } .suit-c { --c: var(--water); } .suit-s { --c: var(--metal); } .suit-p { --c: var(--earth); }
 
