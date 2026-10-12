@@ -107,8 +107,8 @@ function readLiuren(view) {
 
 // ---------- 기문 ----------
 function readQimen(view) {
-  const mode = prefs.qmMode === 'birth' ? 'birth' : 'now';
-  const top = h('div', 'panel no-print', h('div', 'row', seg([['now', '⏱ 시가 포국 (지금·점)'], ['birth', '👤 명국 (생년월일시)']], mode, v => { prefs.qmMode = v; savePrefs(); render(); })));
+  const mode = prefs.qmMode === 'now' ? 'now' : 'birth'; // 기본은 명국
+  const top = h('div', 'panel no-print', h('div', 'row', seg([['birth', '👤 명국 (생년월일시)'], ['now', '⏱ 시가 포국 (지금·점)']], mode, v => { prefs.qmMode = v; savePrefs(); render(); })));
   const out = h('div');
   out.style.marginTop = '12px';
   view.replaceChildren(top, out);
