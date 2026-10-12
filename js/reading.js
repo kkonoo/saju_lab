@@ -21,7 +21,7 @@ function openSavedRec(r) {
   const birth = r.kind === 'qimen' && r.input?.mode === 'birth';
   if (r.kind === 'qimen') { prefs.qmMode = birth ? 'birth' : 'now'; savePrefs(); }
   if (r.kind === 'myeongri') { prefs.mrMode = 'one'; savePrefs(); }
-  READ[birth ? 'qimenBirth' : r.kind] = { input: { ...r.input }, result: r.result, recName: r.name, recMemo: r.memo };
+  READ[birth ? 'qimenBirth' : r.kind] = { input: { ...r.input }, result: r.result, recName: r.name, recMemo: r.memo, recId: r.id };
   go(r.kind, 'read');
 }
 function savedNote(st) {
@@ -98,7 +98,7 @@ function readMyeongri(view) {
       savedNote(st),
       h('div', 'panel',
         h('div', 'panel-head', h('h3', '', `${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.unknownHour || !i.time ? '(시 모름)' : i.time}`), h('span', 'grow'),
-          aiButton('myeongri', st, r), button('💾 저장', () => openSave('myeongri', { ...i }, null, ''), 'btn no-print')),
+          aiButton('myeongri', st, r), button('💾 저장', () => saveBoard(st, 'myeongri', { ...i }, null, ''), 'btn no-print')),
         h('p', 'hint', `절입: ${r.info.jeol.name} ${fmtUtc(r.info.jeol.utcMin * 60000)} · 다음 ${r.info.nextJeol.name} ${fmtUtc(r.info.nextJeol.utcMin * 60000)}`),
         i.unknownHour || !i.time ? null : h('p', 'hint', corrNote(r.info)),
         h('p', '', button(`📖 일주 ${r.pillars[2].gan}${r.pillars[2].zhi} 풀이`, () => iljuHint(r.pillars[2].gan + r.pillars[2].zhi), 'link'), i.unknownHour || !i.time ? null : ' · ',
@@ -132,10 +132,10 @@ function readLiuren(view) {
     const r = liurenAt(...parseDT(i), timeOpt(), dm);
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `${fmtDT(i)} · ${r.day}일 ${r.pillars.hour}시`), h('span', 'grow'),
-        aiButton('liuren', st, r), button('💾 저장', () => openSave('liuren', { ...i }, null, askName(i)), 'btn no-print')),
+        aiButton('liuren', st, r), button('💾 저장', () => saveBoard(st, 'liuren', { ...i }, null, askName(i)), 'btn no-print')),
       askText(i) ? h('p', '', '❓ ', h('b', '', askText(i))) : null,
       h('p', 'hint', corrNote(r.pillars)),
-      drawLiuren(r)),
+      drawLiuren(r, (part, focus) => aiPart('liuren', st, r, part, focus))),
       ...aiBox('liuren', st, r),
       h('p', 'hint', '💡 칸을 누르면 천장·육친 뜻이 나와요. 주점/야점 자동은 卯~申시를 낮으로 봐요. 귀인 표·섭해 방식은 📘 개념에 적어 두었어요.'));
   }
@@ -169,10 +169,10 @@ function readQimen(view) {
     const r = qimenAt(...parseDT(i), timeOpt());
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `${fmtDT(i)} · ${r.pillars.day}일 ${r.shi}시`), h('span', 'grow'),
-        aiButton('qimen', st, r), button('💾 저장', () => openSave('qimen', { ...i, mode: 'now' }, null, askName(i)), 'btn no-print')),
+        aiButton('qimen', st, r), button('💾 저장', () => saveBoard(st, 'qimen', { ...i, mode: 'now' }, null, askName(i)), 'btn no-print')),
       askText(i) ? h('p', '', '❓ ', h('b', '', askText(i))) : null,
       h('p', 'hint', corrNote(r.pillars)),
-      drawQimen(r)),
+      drawQimen(r, (part, focus) => aiPart('qimen', st, r, part, focus))),
       ...aiBox('qimen', st, r),
       h('p', 'hint', '💡 연국(시가)기문 · 전반식 · 절기+부두로 국을 정해요. 홍국기문(홍국수·세·행년)은 아직 없어요.'));
   }
@@ -195,11 +195,11 @@ function qimenBirth(top, out) {
     const p = r.pillars;
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.time}`), h('span', 'grow'),
-        aiButton('qimenBirth', st, r), button('💾 저장', () => openSave('qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
+        aiButton('qimenBirth', st, r), button('💾 저장', () => saveBoard(st, 'qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
       h('p', '', h('b', 'glyph', [p.year, p.month, p.day, p.hour].flatMap((gz, k) => { const t = [...gz].map(c => h('span', `oh-cell ${ohCls(c)}`, c)); return k === 2 ? [button(t, () => iljuHint(gz), 'link glyph'), ' '] : [...t, ' ']; })), h('span', 'muted', '(년 월 일 시 · 일주를 누르면 풀이)'), ' ',
         button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false, cal: i.cal, lunar: i.lunar } }; prefs.mrMode = 'one'; savePrefs(); go('myeongri', 'read'); }, 'link')),
       h('p', 'hint', corrNote(p)),
-      drawQimen(r)),
+      drawQimen(r, (part, focus) => aiPart('qimenBirth', st, r, part, focus))),
       ...aiBox('qimenBirth', st, r),
       h('p', 'hint', '💡 연국기문 명반이에요. 태어난 시각의 시가 포국에 년·월·일·시가 놓인 궁을 표시해요. 홍국기문 명반(홍국수·세·행년·대운)은 아직 없어요.'));
   }
@@ -239,7 +239,7 @@ function readTarot(view) {
       h('div', 'panel-head', h('span', 'grow'),
         allOpen ? null : button('모두 뒤집기', () => { st.result.forEach(c => { c.hidden = false; }); show(); }, 'btn'),
         allOpen ? aiButton('tarot', st, st.result) : null,
-        allOpen ? button('💾 저장', () => openSave('tarot', { ...i, spreadName: SPREADS[i.spread].name }, st.result.map(({ hidden, ...c }) => c), askName(i)), 'btn no-print') : null),
+        allOpen ? button('💾 저장', () => saveBoard(st, 'tarot', { ...i, spreadName: SPREADS[i.spread].name }, st.result.map(({ hidden, ...c }) => c), askName(i)), 'btn no-print') : null),
       drawSpread(sp, k => { st.result[k].hidden = false; show(); })),
       ...(allOpen ? aiBox('tarot', st, st.result) : []),
       allOpen ? h('p', 'hint', '💡 카드를 누르면 정방향·역방향 뜻과 그림 설명이 나와요.') : '');
@@ -304,7 +304,7 @@ const askName = i => ((i.question || '').trim() || askText(i)).slice(0, 60); // 
 // ---------- 🤖 Claude로 읽기 ----------
 // ⚙️에 넣은 API 키로 브라우저에서 바로 부름(서버 없음). 키는 이 브라우저 설정(localStorage)에만 있음
 // 판이 바뀌면(새로 뽑기·날짜 바꾸기) 지난 읽기는 지우고, 받는 중이던 읽기는 버림
-function fresh(st) { st.gen = (st.gen || 0) + 1; delete st.input.ai; st.aiBusy = false; st.aiErr = ''; st.recName = null; }
+function fresh(st) { st.gen = (st.gen || 0) + 1; delete st.input.ai; delete st.input.aiParts; st.aiBusy = false; st.aiErr = ''; st.recName = null; st.recId = null; }
 
 const AI_RULES = `
 - 앱이 계산해 준 판 값을 그대로 쓰고 다시 계산하지 말아요.
@@ -404,13 +404,10 @@ function aiBox(key, st, board) {
       Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : i.ai), { id: 'aiText' })) : null,
   ].filter(Boolean); // replaceChildren에 null을 넘기면 "null" 글자가 찍힘
 }
-async function askClaude(key, st, board) {
-  if (!prefs.claudeKey) { toast('⚙️ 설정에 Claude API 키를 넣어 주세요', 3000); $('settingsBtn').click(); return; }
-  const conf = AI[key], i = st.input, gen = st.gen, ctrl = new AbortController();
-  const live = () => READ[key] === st && st.gen === gen; // 판이 바뀌거나 다른 판을 열면 그만둠
-  const redraw = () => { if (route.sub === 'read') render(); };
-  Object.assign(st, { aiBusy: true, aiText: '', aiErr: '' });
-  redraw();
+// Claude 한 번 부르기 (스트리밍): 글자가 올 때마다 onText(지금까지 글), live()가 거짓이 되면 그만둠
+async function claudeStream({ sys, content, onText, live = () => true }) {
+  const ctrl = new AbortController();
+  let text = '', stop = null;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', signal: ctrl.signal,
@@ -421,20 +418,19 @@ async function askClaude(key, st, board) {
       },
       body: JSON.stringify({
         model: 'claude-opus-5-5', max_tokens: 16000, stream: true, output_config: { effort: 'medium' }, fallbacks: 'default',
-        system: conf.sys + AI_RULES + (conf.ask ? ASK_RULE : ''),
-        messages: [{ role: 'user', content: [conf.text(i, board), conf.ask ? askLines(i) : ''].filter(Boolean).join('\n\n') }],
+        system: sys, messages: [{ role: 'user', content }],
       }),
     });
     if (!res.ok) {
       const msg = (await res.json().catch(() => null))?.error?.message || '';
       throw new Error({ 401: 'API 키가 맞지 않아요. ⚙️에서 다시 넣어 주세요.', 429: '요청이 많아요. 조금 뒤에 다시 해 보세요.', 529: 'Claude가 붐벼요. 조금 뒤에 다시 해 보세요.' }[res.status] || `읽지 못했어요 (${res.status}) ${msg}`);
     }
-    // 스트리밍(SSE): 글자가 오는 대로 화면에 붙임
+    // 스트리밍(SSE): 글자가 오는 대로 붙임
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-    let buf = '', stop = null;
+    let buf = '';
     for (;;) {
       const { value, done } = await reader.read();
-      if (!live()) return ctrl.abort();
+      if (!live()) { ctrl.abort(); return { aborted: true }; }
       if (done) break;
       buf += value.replaceAll('\r', '');
       let n;
@@ -442,20 +438,75 @@ async function askClaude(key, st, board) {
         const data = buf.slice(0, n).split('\n').find(l => l.startsWith('data:'));
         buf = buf.slice(n + 2);
         const e = data ? JSON.parse(data.slice(5)) : {};
-        if (e.type === 'content_block_delta' && e.delta.type === 'text_delta') st.aiText += e.delta.text;
+        if (e.type === 'content_block_delta' && e.delta.type === 'text_delta') text += e.delta.text;
         else if (e.type === 'message_delta') stop = e.delta.stop_reason;
         else if (e.type === 'error') throw new Error(`읽다가 끊겼어요: ${e.error.message}`);
       }
-      const el = $('aiText');
-      if (el) el.textContent = st.aiText;
+      onText(text);
     }
     if (stop === 'refusal') throw new Error('Claude가 이 판은 읽지 않았어요. 질문을 바꿔 다시 해 보세요.');
-    i.ai = st.aiText + (stop === 'max_tokens' ? '\n\n(길이 제한에 걸려 여기서 끊겼어요)' : '');
+    return { text: text + (stop === 'max_tokens' ? '\n\n(길이 제한에 걸려 여기서 끊겼어요)' : '') };
   } catch (e) {
-    if (live()) st.aiErr = e instanceof TypeError ? '인터넷에 연결돼 있는지 확인해 주세요.' : e.message;
-  } finally {
-    if (live()) { st.aiBusy = false; redraw(); }
+    return { err: e instanceof TypeError ? '인터넷에 연결돼 있는지 확인해 주세요.' : e.message };
   }
+}
+const needKey = () => { if (prefs.claudeKey) return false; toast('⚙️ 설정에 Claude API 키를 넣어 주세요', 3000); $('settingsBtn').click(); return true; };
+// 저장한 판(열어 둔 것이든 방금 저장한 것이든)이면 🤖 읽기를 그 판에 바로 기억시킴 — 다시 💾 안 눌러도 됨
+function rememberAI(st) {
+  const rec = st.recId && db.recs.find(r => r.id === st.recId && !r.deleted);
+  if (!rec) return;
+  Object.assign(rec.input, { ai: st.input.ai, aiParts: st.input.aiParts });
+  rec.updatedAt = Date.now();
+  persist();
+}
+// 💾 저장 → 저장된 판과 지금 판을 이어 둠(그 뒤 🤖 읽기도 그 판에 기억)
+function saveBoard(st, kind, input, result, name) {
+  openSave(kind, input, result, name, rec => { st.recId = rec.id; st.recName = rec.name; });
+}
+async function askClaude(key, st, board) {
+  if (needKey()) return;
+  const conf = AI[key], i = st.input, gen = st.gen;
+  const live = () => READ[key] === st && st.gen === gen; // 판이 바뀌거나 다른 판을 열면 그만둠
+  const redraw = () => { if (route.sub === 'read') render(); };
+  Object.assign(st, { aiBusy: true, aiText: '', aiErr: '' });
+  redraw();
+  const r = await claudeStream({
+    sys: conf.sys + AI_RULES + (conf.ask ? ASK_RULE : ''),
+    content: [conf.text(i, board), conf.ask ? askLines(i) : ''].filter(Boolean).join('\n\n'),
+    live, onText: t => { st.aiText = t; const el = $('aiText'); if (el) el.textContent = t; },
+  });
+  if (r.aborted || !live()) return;
+  if (r.err) st.aiErr = r.err; else { i.ai = r.text; rememberAI(st); }
+  st.aiBusy = false;
+  redraw();
+}
+// 칸 하나 해석 (칸 설명 창 안에서): 판 전체는 참고로 주고 그 칸에 집중
+const PART_SUBJ = { qimenBirth: '기문 명국', qimen: '기문 시가 포국', liuren: '대육임 과전' };
+function aiPart(key, st, board, part, focus) {
+  const conf = AI[key], i = st.input, el = h('div', 'ai-part');
+  const show = () => el.replaceChildren(...(i.aiParts?.[part]
+    ? [h('div', 'ai-text', i.aiParts[part]), button('🔄 다시', run, 'btn')]
+    : [button('🤖 이 칸 해석하기', run, 'btn')]));
+  async function run() {
+    if (needKey()) return;
+    const gen = st.gen, out = h('div', 'ai-text', '🤖 Claude가 읽는 중…');
+    el.replaceChildren(out);
+    const r = await claudeStream({
+      sys: `${PART_SUBJ[key]}을 공부하는 사람이 판의 한 칸을 눌렀어요. 판 전체를 참고로 주니 [읽을 칸] 하나에 집중해 풀어 주세요.
+- 그 칸에 있는 것(글자·별·문·신·표시 등)이 각각 무슨 뜻인지 짚고, 서로 어떻게 맞물리는지 말해요.
+- 그래서 이 판에서 이 칸이 무엇을 말하는지(명국이면 그 사람에게, 점이면 그 질문에) 정리해요.
+- 다른 칸은 이 칸과 바로 이어질 때만 짧게 말하고, 3~5문단으로 짧게 써요.` + AI_RULES + (conf.ask ? ASK_RULE : ''),
+      content: [conf.text(i, board), conf.ask ? askLines(i) : '', `[읽을 칸]\n${focus}`].filter(Boolean).join('\n\n'),
+      live: () => READ[key] === st && st.gen === gen, onText: t => { out.textContent = t; },
+    });
+    if (r.aborted || READ[key] !== st || st.gen !== gen) return;
+    if (r.err) return el.replaceChildren(h('p', 'hint', `⚠️ ${r.err}`), button('🤖 다시 해 보기', run, 'btn'));
+    (i.aiParts ||= {})[part] = r.text;
+    rememberAI(st);
+    show();
+  }
+  show();
+  return el;
 }
 
 // ---------- ⚖️ 저장한 판 비교: 명리 원국·기문 명국 둘 (다른 사람끼리, 같은 사람의 명리↔기문도) ----------

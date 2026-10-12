@@ -202,8 +202,8 @@ function render() {
 // ---------- 저장한 판 ----------
 const KIND_NAME = { myeongri: '🀄 명리', liuren: '🌀 육임', qimen: '🧭 기문', tarot: '🃏 타로' };
 let saveTarget = null; // { rec } 또는 { kind, input, result }
-function openSave(kind, input, result, suggested = '') {
-  saveTarget = { kind, input, result };
+function openSave(kind, input, result, suggested = '', onSaved) {
+  saveTarget = { kind, input, result, onSaved };
   $('saveName').value = suggested;
   $('saveMemo').value = '';
   $('saveDel').hidden = true;
@@ -219,7 +219,11 @@ function editSaved(rec) {
 $('saveOk').addEventListener('click', () => {
   const name = $('saveName').value.trim() || '이름 없음', memo = $('saveMemo').value.trim(), now = Date.now();
   if (saveTarget.rec) Object.assign(saveTarget.rec, { name, memo, updatedAt: now });
-  else db.recs.push({ id: uid(), kind: saveTarget.kind, name, memo, input: saveTarget.input, result: saveTarget.result ?? null, createdAt: now, updatedAt: now });
+  else {
+    const rec = { id: uid(), kind: saveTarget.kind, name, memo, input: saveTarget.input, result: saveTarget.result ?? null, createdAt: now, updatedAt: now };
+    db.recs.push(rec);
+    saveTarget.onSaved?.(rec);
+  }
   persist();
   $('saveDlg').close();
   toast('저장했어요');

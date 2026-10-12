@@ -198,6 +198,9 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .qm-cell .door { font-size: calc(13px * var(--fs)); font-weight: 600; }
 .qm-cell .marks { position: absolute; top: 4px; right: 5px; display: flex; gap: 2px; flex-direction: column; align-items: flex-end; }
 .qm-cell.center { background: var(--surface-2); }
+.clickable { cursor: pointer; }
+.qm-cell .cell-btn:hover, .lr-box .cell-btn:hover { text-decoration: underline dotted; }
+.ai-part { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
 .door.gil { color: var(--good); } .door.hyung { color: var(--bad); }
 
 /* 타로 */

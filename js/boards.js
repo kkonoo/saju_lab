@@ -106,86 +106,138 @@ function daeunStrip(r) {
   ];
 }
 
+// 칸 안의 글자 하나하나를 따로 누르게: 누르면 그 항목만 설명
+const tip = (cls, kids, title, lines, ids = []) => cell(cls, kids, e => { e.stopPropagation(); openHint(title, lines.filter(Boolean), ids.filter(Boolean)); });
+// 칸(궁·상자) 전체: 빈 곳이나 이름을 누르면 칸 통째 설명 (+ aiFor가 있으면 🤖 이 칸 해석하기)
+function box(cls, kids, onClick) {
+  const b = h('div', `${cls} clickable`, ...kids);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
 // ================= 육임 =================
-function drawLiuren(r) {
+function drawLiuren(r, aiFor) {
   const jShort = j => LR_JIANG_SHORT[j] || '';
-  const sanRow = h('div', 'lr-row three', ...r.san.map(s => cell('lr-box', [
-    h('div', 't', s.name), h('div', 'dun glyph', s.dun || (s.kong ? '○' : '')),
-    h('div', 'up glyph', h('span', 'jg', jShort(s.jiang)), h('span', `oh-cell ${ohCls(s.zhi)}`, s.zhi)),
-    h('div', 'rel', `${s.rel}${s.kong ? ' · 공망' : ''}`),
-  ], () => sanHint(s, r))));
-  const keRow = h('div', 'lr-row four', ...r.ke.map(k => cell('lr-box', [
-    h('div', 't', `${'一二三四'[k.n - 1]}課`), h('div', 'dun glyph', k.dun || (r.kong.includes(k.up) ? '○' : '')),
-    h('div', 'up glyph', h('span', 'jg', jShort(k.jiang)), h('span', `oh-cell ${ohCls(k.up)}`, k.up)),
-    h('div', 'down glyph', k.down),
-  ], () => keHint(k, r))));
+  const dg = r.day[0];
+  const jiang = j => tip('jg', jShort(j), `천장 ${j}`, [short(JIANG_ID[j]), ...(TERMS.get(JIANG_ID[j])?.body || []).slice(0, 1)], [JIANG_ID[j], 'lr-cheonjang']);
+  const dun = (d, z) => d
+    ? tip('dun glyph', d, `둔간 ${d}`, [`${z}에 붙는 둔간이에요. 일진 ${r.day}의 순(旬) 안에서 이 지지와 짝이 되는 천간이에요.`, charInfo(d), short('lr-dungan')], ['lr-dungan'])
+    : tip('dun glyph', r.kong.includes(z) ? '○' : '', '공망', [`${z}는 일진 공망(${r.kong.join('')})이라 둔간이 없어요. 허하거나 늦어진다고 보는 경우가 많아요.`], ['base-gongmang']);
+  const up = z => tip(`oh-cell ${ohCls(z)}`, z, `천반 ${z}`, [charInfo(z), `일간 ${dg} 기준 육친: ${lrRel(dg, z)}${r.kong.includes(z) ? ' · 공망' : ''}`], ['lr-cheonjiban', 'lr-yukchin']);
+  const down = (z, extra) => tip('down glyph', [z, extra], `지반 ${z}`, [charInfo(z), '지반은 움직이지 않는 열두 자리예요. 그 위에 월장을 점시에 맞춰 돌린 천반이 얹혀요.', z === r.shi ? '점친 시의 지지(점시)예요. 월장이 여기 얹혀요.' : ''], ['lr-cheonjiban', z === r.shi ? 'lr-jeomsi' : null]);
+  const rel = (rl, kong) => tip('rel', `${rl}${kong ? ' · 공망' : ''}`, `육친 ${rl}`, [`일간 ${dg}(${OH_KO[ohOf(dg)]}) 기준으로 본 관계예요.`, short('lr-yukchin'), kong ? `일진 공망(${r.kong.join('')})에 들어요.` : ''], ['lr-yukchin', kong ? 'base-gongmang' : null]);
+  const sanRow = h('div', 'lr-row three', ...r.san.map(s => box('lr-box', [
+    h('div', 't', s.name), dun(s.dun, s.zhi),
+    h('div', 'up glyph', jiang(s.jiang), up(s.zhi)),
+    rel(s.rel, s.kong),
+  ], () => sanHint(s, r, aiFor?.(`san${s.name}`, `삼전 ${s.name}: ${s.dun || '-'}${s.zhi} (육친 ${s.rel}, 천장 ${s.jiang}${s.kong ? ', 공망' : ''})`)))));
+  const keRow = h('div', 'lr-row four', ...r.ke.map(k => box('lr-box', [
+    h('div', 't', `${'一二三四'[k.n - 1]}課`), dun(k.dun, k.up),
+    h('div', 'up glyph', jiang(k.jiang), up(k.up)),
+    k.n === 1 ? tip('down glyph', k.down, `일간 ${k.down}`, [charInfo(k.down), '1과 아래는 일간이에요. 일간은 기궁(寄宮)한 지지 자리에 앉혀서 그 위를 봐요.'], ['lr-gigung', 'lr-sagwa']) : down(k.down),
+  ], () => keHint(k, r, aiFor?.(`ke${k.n}`, `사과 ${k.n}과: ${k.down} 위 ${k.up} (천장 ${k.jiang}, 둔간 ${k.dun || '-'})`)))));
   // 천지반: 위 巳午未申, 오른쪽 酉戌, 아래 亥子丑寅(오른쪽→왼쪽), 왼쪽 卯辰(아래→위)
   const pos = { 巳: [1, 1], 午: [1, 2], 未: [1, 3], 申: [1, 4], 酉: [2, 4], 戌: [3, 4], 亥: [4, 4], 子: [4, 3], 丑: [4, 2], 寅: [4, 1], 卯: [3, 1], 辰: [2, 1] };
   const plate = h('div', 'lr-plate');
   for (const e of JI) {
-    const t = r.plate[e], b = cell('lr-box', [
-      h('div', 'dun glyph', r.dunPlate[e] || (r.kong.includes(t) ? '○' : '')),
-      h('div', 'up glyph', h('span', 'jg', jShort(r.jiang[t])), h('span', `oh-cell ${ohCls(t)}`, t)),
-      h('div', 'down glyph', e, e === r.shi ? h('span', 'tag', '점시') : null),
+    const t = r.plate[e], b = box('lr-box', [
+      dun(r.dunPlate[e], t),
+      h('div', 'up glyph', jiang(r.jiang[t]), up(t)),
+      down(e, e === r.shi ? h('span', 'tag', '점시') : null),
     ], () => openHint(`지반 ${e} 위 천반 ${t}`, [
       `천반 ${charInfo(t)} · 천장 ${r.jiang[t]} · 둔간 ${r.dunPlate[e] || '없음(공망)'}`,
-      `일간 ${r.day[0]} 기준 육친: ${lrRel(r.day[0], t)}`,
-      short(JIANG_ID[r.jiang[t]]),
-    ], [JIANG_ID[r.jiang[t]], 'lr-cheonjiban', 'lr-yukchin']));
+      `일간 ${dg} 기준 육친: ${lrRel(dg, t)}`, e === r.shi ? '점시 자리예요.' : '',
+      short(JIANG_ID[r.jiang[t]]), aiFor?.(`plate${e}`, `천지반: 지반 ${e} 위 천반 ${t} (천장 ${r.jiang[t]}, 둔간 ${r.dunPlate[e] || '공망'}, 육친 ${lrRel(dg, t)})`),
+    ].filter(Boolean), [JIANG_ID[r.jiang[t]], 'lr-cheonjiban', 'lr-yukchin']));
     b.style.gridRow = pos[e][0]; b.style.gridColumn = pos[e][1];
     plate.append(b);
   }
   const mid = METHOD_ID.find(([k]) => r.method.includes(k));
   plate.append(h('div', 'center',
-    h('div', 'wj', `${r.woljang} 월장 · ${r.shi}시`),
+    tip('wj', `${r.woljang} 월장 · ${r.shi}시`, `월장 ${r.woljang}`, [`${r.junggi} 뒤라 월장이 ${r.woljang}예요. 월장 ${r.woljang}을 점시 ${r.shi} 위에 얹고 열두 자리를 같이 돌려 천반을 만들어요.`, short('lr-woljang')], ['lr-woljang', 'lr-jeomsi']),
     button(r.method, () => openHint(r.method, [r.how, mid ? short(mid[1]) : ''], [mid?.[1], 'lr-gujongbeop'].filter(Boolean)), 'link mth'),
-    h('div', 'small muted', `${r.daynight} · 귀인 ${r.gui}(${r.guiDir})`),
-    h('div', 'small', '공망 ', h('b', 'kong', r.kong.join(''))),
+    tip('small muted', `${r.daynight} · 귀인 ${r.gui}(${r.guiDir})`, `${r.daynight} · 귀인 ${r.gui}`, [`${r.daynight}이라 일간 ${dg}의 귀인은 ${r.gui}예요.`, `귀인이 지반 ${r.guiOn}에 앉아 ${r.guiDir}해요(지반 亥~辰이면 순행, 巳~戌이면 역행).`, short('lr-gwiin')], ['lr-gwiin', 'lr-jujeom-yajeom', 'lr-sunyeok']),
+    tip('small', ['공망 ', h('b', 'kong', r.kong.join(''))], `공망 ${r.kong.join('')}`, [`일진 ${r.day}의 순(旬)에서 빠진 두 지지예요. 이 글자가 삼전·사과에 오면 허하거나 늦어진다고 봐요.`], ['base-gongmang']),
   ));
   const meta = r.pillars ? h('div', 'board-meta',
     h('span', '', `${r.pillars.year}년 ${r.pillars.month}월 `, h('b', '', `${r.day}일 ${r.pillars.hour}시`)),
     h('span', '', `월장 ${r.woljang} (${r.junggi} 뒤)`)) : h('div', 'board-meta', h('span', '', h('b', '', `${r.day}일`), ` ${r.woljang}장 ${r.shi}시 ${r.daynight}`));
-  return h('div', 'board', meta, h('h3', '', '삼전'), sanRow, h('h3', '', '사과'), keRow, h('h3', '', '천지반'), plate);
+  return h('div', 'board', meta, h('h3', '', '삼전'), sanRow, h('h3', '', '사과'), keRow, h('h3', '', '천지반'), plate,
+    h('p', 'hint', '💡 글자마다 따로 눌러 볼 수 있어요(둔간 · 천장 · 천반 · 지반 · 육친). 칸의 빈 곳이나 이름(초전·一課)을 누르면 그 칸을 통째로 보여 줘요.'));
 }
-function sanHint(s, r) {
+function sanHint(s, r, ai) {
   const what = { 초전: '일의 발단·시작', 중전: '일이 진행되는 과정', 말전: '일의 결말' }[s.name];
   openHint(`${s.name} ${s.dun}${s.zhi}`, [
     `${s.name}은 흔히 ${what}으로 읽어요.`,
     `${charInfo(s.zhi)} · 천장 ${s.jiang} · 육친 ${s.rel}${s.dun ? ` · 둔간 ${s.dun}` : ''}`,
     s.kong ? `일진 공망(${r.kong.join('')})에 들어요. 공망이면 허하거나 늦어진다고 보는 경우가 많아요.` : '',
-    short(JIANG_ID[s.jiang]),
-  ], [s.name === '초전' ? 'lr-chojeon' : 'lr-samjeon', JIANG_ID[s.jiang], 'lr-yukchin', s.kong ? 'base-gongmang' : null].filter(Boolean));
+    short(JIANG_ID[s.jiang]), ai,
+  ].filter(Boolean), [s.name === '초전' ? 'lr-chojeon' : s.name === '중전' ? 'lr-jungjeon' : 'lr-maljeon', 'lr-samjeon'].filter(Boolean));
 }
-function keHint(k, r) {
+function keHint(k, r, ai) {
   const g = (x, y) => GEUK[ohOf(x)] === ohOf(y);
   const rel = g(k.down, k.up) ? '아래가 위를 극해요(하적상).' : g(k.up, k.down) ? '위가 아래를 극해요(상극하).' : '서로 극하지 않아요.';
   const what = ['일간과 그 위(간상신)', '간상신과 그 위', '일지와 그 위(지상신)', '지상신과 그 위'][k.n - 1];
-  openHint(`${k.n}과 ${k.up}/${k.down}`, [`${k.n}과는 ${what}예요. 1·2과는 나(일간), 3·4과는 상대·일(일지) 쪽으로 읽어요.`, `${k.up}(${OH_KO[ohOf(k.up)]}) / ${k.down}(${OH_KO[ohOf(k.down)]}) — ${rel}`, `천장 ${k.jiang}`],
+  openHint(`${k.n}과 ${k.up}/${k.down}`, [`${k.n}과는 ${what}예요. 1·2과는 나(일간), 3·4과는 상대·일(일지) 쪽으로 읽어요.`, `${k.up}(${OH_KO[ohOf(k.up)]}) / ${k.down}(${OH_KO[ohOf(k.down)]}) — ${rel}`,
+    `천장 ${k.jiang}${k.dun ? ` · 둔간 ${k.dun}` : ''}`, ai].filter(Boolean),
     ['lr-sagwa', k.n === 1 ? 'lr-gigung' : null, JIANG_ID[k.jiang], 'lr-jeokgeuk'].filter(Boolean));
 }
 
 // ================= 기문 =================
 const GIL_DOOR = ['개문', '휴문', '생문'], HYUNG_DOOR = ['상문', '사문', '경문(驚)'];
-function drawQimen(r) {
+const QM_GUA = { 1: ['감(坎)', '水', '북'], 8: ['간(艮)', '土', '북동'], 3: ['진(震)', '木', '동'], 4: ['손(巽)', '木', '남동'], 9: ['리(離)', '火', '남'], 2: ['곤(坤)', '土', '남서'], 7: ['태(兌)', '金', '서'], 6: ['건(乾)', '金', '북서'], 5: ['중궁', '土', '가운데'] };
+const QM_WHO = { 년: '윗사람·조상·나라', 월: '형제·동료·부모 세대', 일: '나', 시: '자녀·아랫사람, 점에서는 묻는 일' };
+function drawQimen(r, aiFor) {
   const grid = h('div', 'qm-grid');
+  const P = r.pillars ? { 년: r.pillars.year, 월: r.pillars.month, 일: r.pillars.day, 시: r.pillars.hour } : {};
   for (const p of [4, 9, 2, 3, 5, 7, 8, 1, 6]) {
     const x = r.palaces[p];
     const kong = p !== 5 && [...(QM_GUNG_JI[p] || '')].some(z => r.kong.includes(z));
     const mk = r.marks?.[p];
-    const marks = h('div', 'marks', p === r.zhifuTo ? h('span', 'tag', '직부') : null, p === r.zhishiTo ? h('span', 'tag', '직사') : null, kong ? h('span', 'tag bad', '공망') : null,
-      mk?.gan.length ? h('span', 'tag ink', `${mk.gan.join('')}간`) : null, mk?.ji.length ? h('span', 'tag soft', `${mk.ji.join('')}지`) : null);
+    const [gua, oh, dir] = QM_GUA[p];
+    const gungLine = `${gua} · 오행 ${OH_KO[oh]}(${oh}) · ${dir}${QM_GUNG_JI[p] ? ` · 지지 ${[...QM_GUNG_JI[p]].join('·')}` : ''}`;
+    const gname = h('div', 'gname', QM_GUNG[p]); // 이름을 누르면 칸 통째 설명(칸 클릭)
+    const marks = h('div', 'marks',
+      p === r.zhifuTo ? tip('tag', '직부', `직부 ${r.zhifu}`, [`순수 ${r.xun}의 의(${r.fuYi})가 지반에 있던 궁의 별 ${r.zhifu}가 직부가 되어 시간(時干) 자리로 와요. 이 궁이 그 자리예요.`, short('qm-jikbu')], ['qm-jikbu', 'qm-sunsu']) : null,
+      p === r.zhishiTo ? tip('tag', '직사', `직사 ${r.zhishi}`, [`순수 궁의 문 ${r.zhishi}가 직사가 되어 시지까지 센 만큼 옮겨 와요. 이 궁이 그 자리예요.`, short('qm-jiksa')], ['qm-jiksa', 'qm-sunsu']) : null,
+      kong ? tip('tag bad', '공망', `공망 ${r.kong.join('')}`, [`시순 공망(${r.kong.join('')})이 이 궁의 지지(${[...QM_GUNG_JI[p]].join('·')})에 들어요. 이 궁의 일은 비거나 늦어진다고 봐요.`, short('qm-gongmang')], ['qm-gongmang']) : null,
+      mk?.gan.length ? tip('tag ink', `${mk.gan.join('')}간`, `${mk.gan.map(w => `${w}간 ${P[w]?.[0] || ''}`).join(' · ')}`, [
+        `${mk.gan.join('·')} 천간이 지반에 앉은 궁이에요(甲은 그 기둥의 순수 의로 찾아요).`,
+        ...mk.gan.map(w => `${w}간 — ${QM_WHO[w]}`)], ['qm-jiban', 'qm-samgi-yugui']) : null,
+      mk?.ji.length ? tip('tag soft', `${mk.ji.join('')}지`, `${mk.ji.map(w => `${w}지 ${P[w]?.[1] || ''}`).join(' · ')}`, [
+        `${mk.ji.join('·')} 지지가 속한 궁이에요(${gua}: ${[...(QM_GUNG_JI[p] || '')].join('·')}).`, ...mk.ji.map(w => `${w}지 — ${QM_WHO[w]}`)], ['qm-gugung']) : null);
+    const earth = tip('e', x.earth, `지반 ${x.earth}`, [charInfo(x.earth), `${r.dun} ${r.ju}국이라 이 궁 지반에 ${x.earth}가 놓여요. 지반은 국수로 정해지고 시가 바뀌어도 그대로예요.`, short('qm-jiban')], ['qm-jiban', 'qm-guksu', 'qm-samgi-yugui']);
     if (p === 5) {
-      grid.append(cell('qm-cell center', [h('div', 'gname', QM_GUNG[5]), marks, h('div', 'stems glyph', h('span', 'e', x.earth)), h('div', 'small muted', `${r.dun} ${r.ju}국`), h('div', 'small muted', `${r.shi}시`)],
-        () => openHint('중5궁', [`지반 ${x.earth}. 중궁은 문·신이 없고, 이 앱에서는 곤2궁에 붙여(기궁) 움직여요.`], ['qm-gigung', 'qm-gugung'])));
+      grid.append(box('qm-cell center', [gname, marks, h('div', 'stems glyph', earth),
+        tip('small muted', `${r.dun} ${r.ju}국`, `${r.dun} ${r.ju}국`, [r.term ? `${r.term} ${r.yuan}(부두 ${r.futou})이라 ${r.dun} ${r.ju}국이에요.` : '', short('qm-guksu')], ['qm-guksu', 'qm-yangdun-eumdun', 'qm-samwon', 'qm-budu']),
+        tip('small muted', `${r.shi}시`, `${r.shi}시 · 순수 ${r.xun}`, [`시주 ${r.shi}는 ${r.xun} 순이라 순수 의는 ${r.fuYi}예요. 직부 ${r.zhifu}, 직사 ${r.zhishi}.`, short('qm-sunsu')], ['qm-sunsu', 'qm-jikbu', 'qm-jiksa'])],
+        () => openHint(QM_GUNG[5], [gungLine, `지반 ${x.earth}. 중궁은 문·신이 없고, 이 앱에서는 곤2궁에 붙여(기궁) 움직여요.`, r.term ? `${r.term} ${r.yuan}(부두 ${r.futou}) · ${r.dun} ${r.ju}국 · ${r.shi}시` : `${r.dun} ${r.ju}국 · ${r.shi}시`,
+          mk?.gan.length ? `${mk.gan.join('·')} 천간이 지반에 앉은 궁이에요. ${mk.gan.map(w => `${w}간 — ${QM_WHO[w]}`).join(' · ')}` : '',
+          aiFor?.('p5', `중5궁: 지반 ${x.earth}${mk?.gan.length ? ` · ${mk.gan.join('')}간` : ''}`)].filter(Boolean), ['qm-gigung', 'qm-gugung', 'qm-guksu'])));
       continue;
     }
     const doorCls = GIL_DOOR.includes(x.door) ? 'gil' : HYUNG_DOOR.includes(x.door) ? 'hyung' : '';
-    grid.append(cell('qm-cell', [
-      h('div', 'gname', QM_GUNG[p]), marks,
-      h('div', 'god', x.god), h('div', 'star', x.star),
-      h('div', 'stems glyph', h('span', `oh-cell ${ohCls(x.heaven[0])}`, x.heaven), ' ', h('span', 'e', x.earth)),
-      h('div', `door ${doorCls}`, x.door),
-    ], () => qmHint(p, x, r, kong)));
+    const starName = x.star.split('·')[0];
+    const palaceHint = () => openHint(`${QM_GUNG[p]} · 칸 전체`, [
+      gungLine,
+      `천반 ${x.heaven} / 지반 ${x.earth}`,
+      `구성 ${x.star} — ${short(STAR_ID[starName])}`,
+      `팔문 ${x.door} — ${short(DOOR_ID[x.door])}`,
+      `팔신 ${x.god} — ${short(GOD_ID[x.god])}`,
+      p === r.zhifuTo ? `직부(${r.zhifu})가 와 있는 궁이에요.` : '',
+      p === r.zhishiTo ? `직사(${r.zhishi})가 와 있는 궁이에요.` : '',
+      kong ? `시순 공망(${r.kong.join('')})이 든 궁이에요.` : '',
+      mk?.gan.length ? `${mk.gan.join('·')} 천간이 지반에 앉은 궁이에요. ${mk.gan.map(w => `${w}간 — ${QM_WHO[w]}`).join(' · ')}` : '',
+      mk?.ji.length ? `${mk.ji.join('·')}지가 속한 궁이에요.` : '',
+      aiFor?.(`p${p}`, `${QM_GUNG[p]}: 천반 ${x.heaven} / 지반 ${x.earth} / ${x.star} / ${x.door} / ${x.god}` +
+        [p === r.zhifuTo && '직부', p === r.zhishiTo && '직사', kong && '공망', mk?.gan.length && `${mk.gan.join('')}간`, mk?.ji.length && `${mk.ji.join('')}지`].filter(Boolean).map(t => ` / ${t}`).join('')),
+    ].filter(Boolean), [STAR_ID[starName], DOOR_ID[x.door], GOD_ID[x.god], 'qm-cheonban', kong ? 'qm-gongmang' : null].filter(Boolean));
+    grid.append(box('qm-cell', [gname, marks,
+      h('div', '', tip('god', x.god, `팔신 ${x.god}`, [short(GOD_ID[x.god]), ...(TERMS.get(GOD_ID[x.god])?.body || []).slice(0, 1)], [GOD_ID[x.god], 'qm-palsin'])),
+      h('div', '', tip('star', x.star, `구성 ${x.star}`, [short(STAR_ID[starName]), x.star.includes('·') ? '천금성은 중5궁의 별이라 곤2궁의 천예와 함께 움직여요(기궁).' : ''], [STAR_ID[starName], 'qm-guseong', x.star.includes('·') ? 'qm-gigung' : null])),
+      h('div', 'stems glyph', tip(`oh-cell ${ohCls(x.heaven[0])}`, x.heaven, `천반 ${x.heaven}`, [...[...x.heaven].map(charInfo), `지반 ${x.earth} 위에 얹힌 천반이에요. 천반은 직부를 따라 시마다 돌아요.`,
+        x.heaven.length > 1 ? `뒤 글자 ${x.heaven[1]}는 중5궁 지반 천간이 곤2궁에 기궁해 함께 온 거예요.` : '', short('qm-cheonban')], ['qm-cheonban', 'qm-jeonban', x.heaven.length > 1 ? 'qm-gigung' : null]), ' ', earth),
+      h('div', '', tip(`door ${doorCls}`, x.door, `팔문 ${x.door}`, [short(DOOR_ID[x.door]), ...(TERMS.get(DOOR_ID[x.door])?.body || []).slice(0, 1)], [DOOR_ID[x.door], 'qm-palmun', 'qm-gilmun']))], palaceHint));
   }
   const meta = h('div', 'board-meta',
     r.term ? h('span', '', h('b', '', `${r.term} ${r.yuan}`), ` (부두 ${r.futou})`) : null,
@@ -193,22 +245,8 @@ function drawQimen(r) {
     h('span', '', `순수 ${r.xun}${r.fuYi} → 직부 ${r.zhifu}, 직사 ${r.zhishi}`),
     h('span', '', '공망 ', h('b', 'kong', r.kong.join(''))),
     r.pillars ? h('span', '', `${r.pillars.year}년 ${r.pillars.month}월 ${r.pillars.day}일`) : null);
-  return h('div', 'board', meta, grid, h('p', 'hint', '칸마다 위에서부터 팔신 · 구성 · 천반간(큰 글자)과 지반간 · 팔문. 위쪽이 남쪽이에요.',
+  return h('div', 'board', meta, grid, h('p', 'hint', '칸마다 위에서부터 팔신 · 구성 · 천반간(큰 글자)과 지반간 · 팔문. 위쪽이 남쪽이에요. 글자·표시를 하나씩 누르면 그것만, 궁 이름이나 빈 곳을 누르면 그 궁을 통째로 보여 줘요.',
     r.marks ? ' 진한 표시(예: 시일간)는 년·월·일·시 천간이 지반에 있는 궁(甲은 순수 의), 연한 표시(예: 년지)는 그 지지가 속한 궁이에요.' : ''));
-}
-function qmHint(p, x, r, kong) {
-  const starName = x.star.split('·')[0];
-  openHint(`${QM_GUNG[p]}`, [
-    `천반 ${x.heaven} / 지반 ${x.earth}`,
-    `구성 ${x.star} — ${short(STAR_ID[starName])}`,
-    `팔문 ${x.door} — ${short(DOOR_ID[x.door])}`,
-    `팔신 ${x.god} — ${short(GOD_ID[x.god])}`,
-    p === r.zhifuTo ? `직부(${r.zhifu})가 와 있는 궁이에요.` : '',
-    p === r.zhishiTo ? `직사(${r.zhishi})가 와 있는 궁이에요.` : '',
-    kong ? `시순 공망(${r.kong.join('')})이 든 궁이에요.` : '',
-    r.marks?.[p]?.gan.length ? `${r.marks[p].gan.join('·')} 천간이 지반에 앉은 궁이에요. 명국에서는 일간 궁을 나, 년간 궁을 윗사람·조상, 월간 궁을 형제·동료, 시간 궁을 자녀·아랫사람이나 일의 결과로 보는 경우가 많아요.` : '',
-    r.marks?.[p]?.ji.length ? `${r.marks[p].ji.join('·')}지가 속한 궁이에요.` : '',
-  ], [STAR_ID[starName], DOOR_ID[x.door], GOD_ID[x.god], 'qm-cheonban', kong ? 'qm-gongmang' : null].filter(Boolean));
 }
 
 // ================= 타로 =================
