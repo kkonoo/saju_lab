@@ -228,12 +228,16 @@ const QM_CHIPS = { yeon: [['jiban', '지반'], ['door', '팔문'], ['star', '구
 function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 줄 + AI에 줄 요약
   const hk = hv.hk, x = hk.palaces[p], g = hk.male ? 0 : 1, sOh = HK_OH(hk.seNum), on = k => !!hv.show?.[k];
   const yinyang = n => (n % 2 ? '양' : '음');
-  const num = (n, side) => tip(`hk-num oh-tile oh-${HK_OH(n)}`, HK_HAN[n], `${side}반수 ${HK_HAN[n]}(${n})`, [
-    `${OH_KO[HK_OH(n)]}(${HK_OH(n)})·${yinyang(n)}${n === 10 ? '' : `, 지지로는 ${ko(HK_JI[n])}(${HK_JI[n]})`} — 하도 짝 ${HK_HADO[HK_OH(n)]}`,
-    `이 칸의 두 수 ${HK_HAN[x.heaven]}·${HK_HAN[x.earth]}: ${hkPair(x.heaven, x.earth).text}`,
-    side === '천' ? `천간수(甲1…癸10) 합 ${hk.sumG}을 9로 나눈 나머지 ${hk.ch}가 천반 중궁수예요. 바깥 궁은 ${hk.ch}에서 궁 번호를 빼서 놓아요(역포, 0은 十).`
-      : `지지수(子1…亥12) 합 ${hk.sumJ}을 9로 나눈 나머지 ${hk.ce}가 지반 중궁수예요. 바깥 궁은 ${hk.ce}에 궁 번호를 더해 놓아요(순포, 일의 자리만, 0은 十).`,
-    n === 10 ? `십(十)은 대운 햇수를 셀 때 빠진 수 ${side === '천' ? hk.missH : hk.missE}의 몫을 해요. 형충은 보지 않아요.` : '', short('qm-hk-su')], ['qm-hk-su', 'qm-hk-pair']);
+  // 두 숫자는 한 짝: 천반수·지반수 어느 쪽을 눌러도 짝 설명(하도 짝·생극·형충·어떻게 나왔는지)
+  const numLine = (n, side) => `${side}반수 ${HK_HAN[n]}(${n}) — ${OH_KO[HK_OH(n)]}(${HK_OH(n)})·${yinyang(n)}${n === 10 ? '' : `, 지지로는 ${ko(HK_JI[n])}(${HK_JI[n]})`}, 하도 짝 ${HK_HADO[HK_OH(n)]}`;
+  const pr = hkPair(x.heaven, x.earth);
+  const pairLines = [numLine(x.heaven, '천'), numLine(x.earth, '지'),
+    `두 수: ${pr.text}`, /^[진가][생극]/.test(pr.kind) ? '통기(通氣)는 진생 → 진극 → 가생 → 가극 차례로 힘이 세다고 봐요.' : '',
+    x.label ? `${relKo(x.label)}(${x.label})이기도 해요 — ${x.label === '九金殺' ? '사(四)와 오(五)가 만나 구금살' : x.label === '五五自刑' ? '五를 辰으로 보면 辰辰 자형' : '두 수를 지지로 바꾼 관계'}.` : '',
+    p === 5 ? `중궁의 두 수라 판 전체의 국을 정해요: ${HK_GUK_KO[hk.guk]}(${hk.guk}).` : '',
+    `어떻게 나왔나: 천반은 천간수 합 ${hk.sumG} → 중궁 ${hk.ch}${p === 5 ? '' : `에서 궁 번호 ${p}를 빼고`}, 지반은 지지수 합 ${hk.sumJ} → 중궁 ${hk.ce}${p === 5 ? '' : `에 궁 번호 ${p}를 더해`} 일의 자리만 써요(0은 十).`,
+    x.heaven === 10 || x.earth === 10 ? `십(十)은 형충은 보지 않고, 대운 햇수를 셀 때는 빠진 수(천반 ${hk.missH || '-'}, 지반 ${hk.missE || '-'})의 몫을 해요.` : '', short('qm-hk-pair')];
+  const num = n => tip(`hk-num oh-tile oh-${HK_OH(n)}`, HK_HAN[n], `홍국수 짝 ${HK_HAN[x.heaven]}·${HK_HAN[x.earth]} — ${pr.kind}`, pairLines, ['qm-hk-pair', 'qm-hk-su', x.label ? 'qm-hk-rel' : null]);
   const rel = (rl, n) => tip(`hk-rel${rl === '世' ? ' se' : ''}`, rl, `${HK_REL_KO[rl]}(${rl}) — ${HK_REL_NAME[rl]}`, [
     rl === '世' ? `일지 ${ko(hk.dayJi)}(${hk.dayJi})가 속한 궁이라 세(世), 나의 자리예요. 육친은 모두 世의 지반수 ${HK_HAN[hk.seNum]}(${OH_KO[sOh]})를 기준으로 봐요.`
       : `世의 지반수 ${HK_HAN[hk.seNum]}(${OH_KO[sOh]}·${yinyang(hk.seNum)}) 기준으로 ${HK_HAN[n]}(${OH_KO[HK_OH(n)]}·${yinyang(n)})는 ${HK_REL_WHY[rl]}라 ${HK_REL_KO[rl]}(${rl})예요.`,
@@ -262,16 +266,15 @@ function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 
   const mo = hv.months?.[p]?.length ? tip(`hk-yr${hv.months[p].includes(hv.nowMonth) ? ' now' : ''}`, `${hv.months[p].join('·')}월`, `음력 ${hv.months[p].join('·')}월`, [
     `이 달의 월지(${hv.months[p].map(m => `${m}월 ${JI[(m + 1) % 12]}`).join(', ')})가 속한 궁이에요. 달은 해마다 같은 궁에 들어요(1월 寅은 간8궁, 5월 午는 리9궁 …).`, short('qm-hk-gukgi')], ['qm-hk-gukgi']) : '';
   const kong = p !== 5 && [...QM_GUNG_JI[p]].some(z => hk.kongDay.includes(z)) ? tip('hk-kong', '○', `일공(日空) ${hk.kongDay.join('')}`, [`일주 순(旬)의 공망 ${hk.kongDay.join('')}이 이 궁 지지에 들어요. 이 궁의 일은 비거나 늦어진다고 봐요.`], ['base-gongmang']) : '';
-  const pair = hkPair(x.heaven, x.earth);
   const lines = [
     `홍국: 천반수 ${HK_HAN[x.heaven]} ${HK_REL_KO[x.relH]}(${x.relH}) · 지반수 ${HK_HAN[x.earth]} ${HK_REL_KO[x.relE]}(${x.relE})`,
-    `두 수의 짝: ${HK_HAN[x.heaven]}·${HK_HAN[x.earth]} — ${pair.text}`,
+    `두 수의 짝: ${HK_HAN[x.heaven]}·${HK_HAN[x.earth]} — ${pr.text}`,
     hv.won && x.daeun ? `대운: 천반 ${x.daeun.heaven.join('~')}세 · 지반 ${x.daeun.earth.join('~')}세` : '',
     x.yunyeon ? `유년 ${HK_YUN[x.yunyeon][0]}(${x.yunyeon}) — ${HK_YUN[x.yunyeon][2]}` : '', x.unseong.length ? `12운성 ${x.unseong.map(u => `${ko(u.z)}(${u.z}) ${u.u}`).join(' · ')}` : '',
     x.label ? `${relKo(x.label)}(${x.label})` : '', x.sinsal.length ? `신살 ${x.sinsal.map(s => `${s.fu ? '복' : ''}${ssKo(s.name)}(${s.fu ? '伏' : ''}${s.name})`).join(' · ')}` : '',
     hv.years?.[p] ? `${hv.years[p]}년 소운이 이 궁` : '', hv.months?.[p]?.length ? `음력 ${hv.months[p].join('·')}월이 이 궁` : ''].filter(Boolean);
   const focus = `홍국 천반수 ${x.heaven}(${x.relH}) 지반수 ${x.earth}(${x.relE})${hv.won ? ` 대운 ${x.daeun.heaven.join('~')}/${x.daeun.earth.join('~')}세` : ''}${x.yunyeon ? ` ${x.yunyeon}` : ''}${x.label ? ` ${x.label}` : ''}${x.sinsal.length ? ` 신살 ${x.sinsal.map(s => (s.fu ? '伏' : '') + s.name).join(' ')}` : ''}`;
-  return { x, numH: num(x.heaven, '천'), numE: num(x.earth, '지'), relH: rel(x.relH, x.heaven), relE: rel(x.relE, x.earth),
+  return { x, numH: num(x.heaven), numE: num(x.earth), relH: rel(x.relH, x.heaven), relE: rel(x.relE, x.earth),
     duH: du(x.daeun?.heaven, '천'), duE: du(x.daeun?.earth, '지'), yun, un, lab, ss, ages, top: [yr, mo].filter(Boolean), kong, lines, focus };
 }
 // 4칸 짜리 격자(왼쪽 작은 글자 | 홍국수 | 연국 천간 | 오른쪽 작은 글자), 빈 줄·빈 칸은 접음.
