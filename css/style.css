@@ -232,7 +232,9 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .hkg { display: grid; align-items: center; justify-content: center; column-gap: 5px; row-gap: 1px; margin: 3px 0 2px; }
 .hkg .c0 { justify-self: end; } .hkg .c1 { justify-self: center; } .hkg .c2, .hkg .c3 { justify-self: start; }
 .hk-num { min-width: 1.55em; text-align: center; border-radius: 5px; padding: 0 3px; font-weight: 700; font-size: calc(15px * var(--fs)); line-height: 1.35; }
-.hkg:has(.hk-num:hover) .hk-num { box-shadow: 0 0 0 1.5px var(--c); } /* 두 숫자는 한 짝 */
+/* 한 짝은 같이 표시: 홍국수 둘, 위아래 육친 둘, 육임 위아래 */
+.hkg:has(.hk-num:hover) .hk-num { box-shadow: 0 0 0 1.5px var(--c); }
+.hkg:has(.hk-rel:hover) .hk-rel, .lr-box:has(.lr-pair:hover) .lr-pair { text-decoration: underline dotted; background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 4px; }
 .hk-rel { font-weight: 700; font-size: calc(14px * var(--fs)); line-height: 1.25; } .hk-rel.se { color: var(--bad); }
 .hk-stem { font-size: calc(18px * var(--fs)); font-weight: 700; line-height: 1.2; white-space: nowrap; } .hk-stem.e { color: var(--muted); font-weight: 600; } .hk-stem.two { font-size: calc(14px * var(--fs)); letter-spacing: -1px; }
 .hk-s { font-size: calc(13px * var(--fs)); line-height: 1.3; }

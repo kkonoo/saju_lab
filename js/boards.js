@@ -6,6 +6,7 @@ const JIANG_ID = { 귀인: 'lr-gwiin', 등사: 'lr-deungsa', 주작: 'lr-jujak',
 const STAR_ID = { 천봉: 'qm-s-bong', 천예: 'qm-s-ye', 천충: 'qm-s-chung', 천보: 'qm-s-bo', 천금: 'qm-s-geum', 천심: 'qm-s-sim', 천주: 'qm-s-ju', 천임: 'qm-s-im', 천영: 'qm-s-yeong' };
 const DOOR_ID = { 휴문: 'qm-d-hyu', 생문: 'qm-d-saeng', 상문: 'qm-d-sang', 두문: 'qm-d-du', '경문(景)': 'qm-d-gyeong9', 사문: 'qm-d-sa', '경문(驚)': 'qm-d-gyeong7', 개문: 'qm-d-gae' };
 const GOD_ID = { 직부: 'qm-g-jikbu', 등사: 'qm-g-deungsa', 태음: 'qm-g-taeeum', 육합: 'qm-g-yukhap', 백호: 'qm-g-baekho', 현무: 'qm-g-hyeonmu', 구진: 'qm-g-gujin', 주작: 'qm-g-jujak', 구지: 'qm-g-guji', 구천: 'qm-g-gucheon' };
+const JIANG_HJ = { 귀인: ['貴人', '土'], 등사: ['螣蛇', '火'], 주작: ['朱雀', '火'], 육합: ['六合', '木'], 구진: ['勾陳', '土'], 청룡: ['靑龍', '木'], 천공: ['天空', '土'], 백호: ['白虎', '金'], 태상: ['太常', '土'], 현무: ['玄武', '水'], 태음: ['太陰', '金'], 천후: ['天后', '水'] };
 const SS_HJ = { 비견: '比肩', 겁재: '劫財', 식신: '食神', 상관: '傷官', 편재: '偏財', 정재: '正財', 편관: '偏官', 정관: '正官', 편인: '偏印', 정인: '正印', 일간: '日干' };
 const LR_REL_HJ = { 부모: '父母', 형제: '兄弟', 자손: '子孫', 처재: '妻財', 관귀: '官鬼' };
 const khs = (k, hj) => (hj ? [k, h('span', 'hj', `(${hj})`)] : k); // 칸 안 한글(한자): 한자는 작게
@@ -122,12 +123,30 @@ function box(cls, kids, onClick) {
 function drawLiuren(r, aiFor) {
   const jShort = j => LR_JIANG_SHORT[j] || '';
   const dg = r.day[0];
-  const jiang = j => tip('jg', jShort(j), `천장 ${j}`, [short(JIANG_ID[j]), ...(TERMS.get(JIANG_ID[j])?.body || []).slice(0, 1)], [JIANG_ID[j], 'lr-cheonjang']);
+  const jiang = j => tip('jg', jShort(j), `천장 ${j}(${JIANG_HJ[j]?.[0]})`, [short(JIANG_ID[j]), ...(TERMS.get(JIANG_ID[j])?.body || []).slice(0, 1)], [JIANG_ID[j], 'lr-cheonjang']);
   const dun = (d, z) => d
     ? tip('dun glyph', d, `둔간 ${d}`, [`${z}에 붙는 둔간이에요. 일진 ${r.day}의 순(旬) 안에서 이 지지와 짝이 되는 천간이에요.`, charInfo(d), short('lr-dungan')], ['lr-dungan'])
     : tip('dun glyph', r.kong.includes(z) ? '○' : '', '공망', [`${z}는 일진 공망(${r.kong.join('')})이라 둔간이 없어요. 허하거나 늦어진다고 보는 경우가 많아요.`], ['base-gongmang']);
+  // 사과·천지반의 위(천반)·아래(지반 또는 일간)는 한 쌍으로 읽음(상신·하신의 생극, 가림): 어느 쪽을 눌러도 짝 설명
+  const pair = (u, d, j, ke) => {
+    const o = ohOf(u), od = ohOf(d), sk = (x, y) => SAENG[ohOf(x)] === ohOf(y);
+    const rel = o === od ? '비화(比和) — 같은 오행이에요' : lrGeuk(u, d) ? '상극하(上剋下) — 위가 아래를 극해요' : lrGeuk(d, u) ? '하적상(下賊上) — 아래가 위를 극해요'
+      : sk(u, d) ? '위가 아래를 생해요(상생하)' : '아래가 위를 생해요(하생상)';
+    const jr = JI.includes(d) ? hkJiRel(u, d) : {};
+    const jiRel = Object.entries(jr).map(([k, v]) => `${ko(v)}${{ 沖: '충', 怨嗔: '원진', 刑: '형', 破: '파', 害: '해', 合: '합', 自刑: '자형' }[k]}(${v}${k})`).join(' · ');
+    const [jh, jo] = JIANG_HJ[j] || [];
+    const jw = jo && (GEUK[jo] === o ? `천장 ${j}(${jh}, ${OH_KO[jo]})가 탄 지지 ${u}를 극해요` : GEUK[o] === jo ? `탄 지지 ${u}가 천장 ${j}(${jh}, ${OH_KO[jo]})를 극해요` : '');
+    return { title: ke ? `${ke.n}과 ${u}/${d} — ${rel.split(' — ')[0]}` : `${u} 가(加) ${d} — ${rel.split(' — ')[0]}`, lines: [
+      `위(천반) ${charInfo(u)} · 일간 ${dg} 기준 ${lrRel(dg, u)}(${LR_REL_HJ[lrRel(dg, u)]})${r.kong.includes(u) ? ' · 공망' : ''}`,
+      `아래(${ke?.n === 1 ? '일간' : '지반'}) ${charInfo(d)}${JI.includes(d) && d === r.shi ? ' · 점시' : ''}`,
+      `둘 사이: ${rel}${o !== od && (lrGeuk(u, d) || lrGeuk(d, u)) ? '. 천반과 지반이 극하니 외전(外戰)이라고도 해요' : ''}.${jiRel ? ` 지지로는 ${jiRel}.` : ''}`,
+      ke ? `${ke.n}과는 ${['일간과 그 위(간상신)', '간상신과 그 위', '일지와 그 위(지상신)', '지상신과 그 위'][ke.n - 1]}예요. 사과의 위아래 극(상극하·하적상)으로 초전을 고르는 게 적극법이에요.`
+        : `천반 ${u}가 지반 ${d} 위에 얹혀(가림, 加臨) 있어요. 위아래를 한 쌍으로 '${u} 가 ${d}'라고 읽어요.`,
+      jw ? `${jw}. 천장과 탄 지지가 극하면 내전(內戰)이라 해서 안에서 다툼이 있다고 봐요.` : '', short(ke ? 'lr-sagwa' : 'lr-cheonjiban')],
+      ids: [ke ? 'lr-sagwa' : 'lr-cheonjiban', ke ? 'lr-jeokgeuk' : null, 'lr-yukchin', jiRel ? 'base-hyeong' : null] };
+  };
+  const pairTip = (cls, kids, u, d, j, ke) => { const x = pair(u, d, j, ke); return tip(`${cls} lr-pair`, kids, x.title, x.lines, x.ids); };
   const up = z => tip(`oh-cell ${ohCls(z)}`, z, `천반 ${z}`, [charInfo(z), `일간 ${dg} 기준 육친: ${lrRel(dg, z)}${r.kong.includes(z) ? ' · 공망' : ''}`], ['lr-cheonjiban', 'lr-yukchin']);
-  const down = (z, extra) => tip('down glyph', [z, extra], `지반 ${z}`, [charInfo(z), '지반은 움직이지 않는 열두 자리예요. 그 위에 월장을 점시에 맞춰 돌린 천반이 얹혀요.', z === r.shi ? '점친 시의 지지(점시)예요. 월장이 여기 얹혀요.' : ''], ['lr-cheonjiban', z === r.shi ? 'lr-jeomsi' : null]);
   const rel = (rl, kong) => tip('rel', [...[khs(rl, LR_REL_HJ[rl])].flat(), kong ? ' · 공망' : ''], `육친 ${rl}(${LR_REL_HJ[rl]})`, [`일간 ${dg}(${OH_KO[ohOf(dg)]}) 기준으로 본 관계예요.`, short('lr-yukchin'), kong ? `일진 공망(${r.kong.join('')})에 들어요.` : ''], ['lr-yukchin', kong ? 'base-gongmang' : null]);
   const sanRow = h('div', 'lr-row three', ...r.san.map(s => box('lr-box', [
     h('div', 't', s.name), dun(s.dun, s.zhi),
@@ -136,8 +155,8 @@ function drawLiuren(r, aiFor) {
   ], () => sanHint(s, r, aiFor?.(`san${s.name}`, `삼전 ${s.name}: ${s.dun || '-'}${s.zhi} (육친 ${s.rel}, 천장 ${s.jiang}${s.kong ? ', 공망' : ''})`)))));
   const keRow = h('div', 'lr-row four', ...r.ke.map(k => box('lr-box', [
     h('div', 't', `${'一二三四'[k.n - 1]}課`), dun(k.dun, k.up),
-    h('div', 'up glyph', jiang(k.jiang), up(k.up)),
-    k.n === 1 ? tip('down glyph', k.down, `일간 ${k.down}`, [charInfo(k.down), '1과 아래는 일간이에요. 일간은 기궁(寄宮)한 지지 자리에 앉혀서 그 위를 봐요.'], ['lr-gigung', 'lr-sagwa']) : down(k.down),
+    h('div', 'up glyph', jiang(k.jiang), pairTip(`oh-cell ${ohCls(k.up)}`, k.up, k.up, k.down, k.jiang, k)),
+    pairTip('down glyph', k.down, k.up, k.down, k.jiang, k),
   ], () => keHint(k, r, aiFor?.(`ke${k.n}`, `사과 ${k.n}과: ${k.down} 위 ${k.up} (천장 ${k.jiang}, 둔간 ${k.dun || '-'})`)))));
   // 천지반: 위 巳午未申, 오른쪽 酉戌, 아래 亥子丑寅(오른쪽→왼쪽), 왼쪽 卯辰(아래→위)
   const pos = { 巳: [1, 1], 午: [1, 2], 未: [1, 3], 申: [1, 4], 酉: [2, 4], 戌: [3, 4], 亥: [4, 4], 子: [4, 3], 丑: [4, 2], 寅: [4, 1], 卯: [3, 1], 辰: [2, 1] };
@@ -145,8 +164,8 @@ function drawLiuren(r, aiFor) {
   for (const e of JI) {
     const t = r.plate[e], b = box('lr-box', [
       dun(r.dunPlate[e], t),
-      h('div', 'up glyph', jiang(r.jiang[t]), up(t)),
-      down(e, e === r.shi ? h('span', 'tag', '점시') : null),
+      h('div', 'up glyph', jiang(r.jiang[t]), pairTip(`oh-cell ${ohCls(t)}`, t, t, e, r.jiang[t])),
+      pairTip('down glyph', [e, e === r.shi ? h('span', 'tag', '점시') : null], t, e, r.jiang[t]),
     ], () => openHint(`지반 ${e} 위 천반 ${t}`, [
       `천반 ${charInfo(t)} · 천장 ${r.jiang[t]} · 둔간 ${r.dunPlate[e] || '없음(공망)'}`,
       `일간 ${dg} 기준 육친: ${lrRel(dg, t)}`, e === r.shi ? '점시 자리예요.' : '',
