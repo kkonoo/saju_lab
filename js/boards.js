@@ -140,16 +140,17 @@ function keHint(k, r) {
 }
 
 // ================= 기문 =================
-const GUNG_JI = { 1: '子', 8: '丑寅', 3: '卯', 4: '辰巳', 9: '午', 2: '未申', 7: '酉', 6: '戌亥' };
 const GIL_DOOR = ['개문', '휴문', '생문'], HYUNG_DOOR = ['상문', '사문', '경문(驚)'];
 function drawQimen(r) {
   const grid = h('div', 'qm-grid');
   for (const p of [4, 9, 2, 3, 5, 7, 8, 1, 6]) {
     const x = r.palaces[p];
-    const kong = p !== 5 && [...(GUNG_JI[p] || '')].some(z => r.kong.includes(z));
-    const marks = h('div', 'marks', p === r.zhifuTo ? h('span', 'tag', '직부') : null, p === r.zhishiTo ? h('span', 'tag', '직사') : null, kong ? h('span', 'tag bad', '공망') : null);
+    const kong = p !== 5 && [...(QM_GUNG_JI[p] || '')].some(z => r.kong.includes(z));
+    const mk = r.marks?.[p];
+    const marks = h('div', 'marks', p === r.zhifuTo ? h('span', 'tag', '직부') : null, p === r.zhishiTo ? h('span', 'tag', '직사') : null, kong ? h('span', 'tag bad', '공망') : null,
+      mk?.gan.length ? h('span', 'tag ink', `${mk.gan.join('')}간`) : null, mk?.ji.length ? h('span', 'tag soft', `${mk.ji.join('')}지`) : null);
     if (p === 5) {
-      grid.append(cell('qm-cell center', [h('div', 'gname', QM_GUNG[5]), h('div', 'stems glyph', h('span', 'e', x.earth)), h('div', 'small muted', `${r.dun} ${r.ju}국`), h('div', 'small muted', `${r.shi}시`)],
+      grid.append(cell('qm-cell center', [h('div', 'gname', QM_GUNG[5]), marks, h('div', 'stems glyph', h('span', 'e', x.earth)), h('div', 'small muted', `${r.dun} ${r.ju}국`), h('div', 'small muted', `${r.shi}시`)],
         () => openHint('중5궁', [`지반 ${x.earth}. 중궁은 문·신이 없고, 이 앱에서는 곤2궁에 붙여(기궁) 움직여요.`], ['qm-gigung', 'qm-gugung'])));
       continue;
     }
@@ -167,7 +168,8 @@ function drawQimen(r) {
     h('span', '', `순수 ${r.xun}${r.fuYi} → 직부 ${r.zhifu}, 직사 ${r.zhishi}`),
     h('span', '', '공망 ', h('b', 'kong', r.kong.join(''))),
     r.pillars ? h('span', '', `${r.pillars.year}년 ${r.pillars.month}월 ${r.pillars.day}일`) : null);
-  return h('div', 'board', meta, grid, h('p', 'hint', '칸마다 위에서부터 팔신 · 구성 · 천반간(큰 글자)과 지반간 · 팔문. 위쪽이 남쪽이에요.'));
+  return h('div', 'board', meta, grid, h('p', 'hint', '칸마다 위에서부터 팔신 · 구성 · 천반간(큰 글자)과 지반간 · 팔문. 위쪽이 남쪽이에요.',
+    r.marks ? ' 진한 표시(예: 시일간)는 년·월·일·시 천간이 지반에 있는 궁(甲은 순수 의), 연한 표시(예: 년지)는 그 지지가 속한 궁이에요.' : ''));
 }
 function qmHint(p, x, r, kong) {
   const starName = x.star.split('·')[0];
@@ -179,6 +181,8 @@ function qmHint(p, x, r, kong) {
     p === r.zhifuTo ? `직부(${r.zhifu})가 와 있는 궁이에요.` : '',
     p === r.zhishiTo ? `직사(${r.zhishi})가 와 있는 궁이에요.` : '',
     kong ? `시순 공망(${r.kong.join('')})이 든 궁이에요.` : '',
+    r.marks?.[p]?.gan.length ? `${r.marks[p].gan.join('·')} 천간이 지반에 앉은 궁이에요. 명국에서는 일간 궁을 나, 년간 궁을 윗사람·조상, 월간 궁을 형제·동료, 시간 궁을 자녀·아랫사람이나 일의 결과로 보는 경우가 많아요.` : '',
+    r.marks?.[p]?.ji.length ? `${r.marks[p].ji.join('·')}지가 속한 궁이에요.` : '',
   ], [STAR_ID[starName], DOOR_ID[x.door], GOD_ID[x.god], 'qm-cheonban', kong ? 'qm-gongmang' : null].filter(Boolean));
 }
 

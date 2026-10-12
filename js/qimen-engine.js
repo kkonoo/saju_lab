@@ -63,5 +63,21 @@ function qimenAt(y, m, d, h, mi, opt = {}) {
   const yuan = '子午卯酉'.includes(futou[1]) ? 0 : '寅申巳亥'.includes(futou[1]) ? 1 : 2;
   const yang = QM_YANG_TERMS.includes(term);
   const ju = QM_JU[term][yuan];
-  return { ...qimenCalc(yang, ju, p.hour), pillars: p, term, futou, yuan: ['상원', '중원', '하원'][yuan] };
+  const r = qimenCalc(yang, ju, p.hour);
+  return { ...r, pillars: p, term, futou, yuan: ['상원', '중원', '하원'][yuan], marks: qimenMarks(r, p) };
+}
+
+// 년·월·일·시가 놓이는 궁: 천간은 지반에서 그 글자가 있는 궁(甲은 그 기둥의 순수 의), 지지는 그 지지가 속한 궁
+const QM_GUNG_JI = { 1: '子', 8: '丑寅', 3: '卯', 4: '辰巳', 9: '午', 2: '未申', 7: '酉', 6: '戌亥' };
+function qimenMarks(r, p) {
+  const marks = {};
+  const add = (palace, kind, who) => { ((marks[palace] ||= { gan: [], ji: [] })[kind]).push(who); };
+  [['년', p.year], ['월', p.month], ['일', p.day], ['시', p.hour]].forEach(([who, gz]) => {
+    const stem = gz[0] === '甲' ? QM_XUN_YI[xunOf(gz).start[1]] : gz[0];
+    const gp = +Object.keys(r.palaces).find(k => r.palaces[k].earth === stem);
+    if (gp) add(gp, 'gan', who);
+    const jp = +Object.keys(QM_GUNG_JI).find(k => QM_GUNG_JI[k].includes(gz[1]));
+    add(jp, 'ji', who);
+  });
+  return marks;
 }

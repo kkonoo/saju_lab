@@ -18,7 +18,9 @@ function corrNote(p) {
     : `시계 시각 그대로 시를 나눴어요${prefs.yajasi ? ' (야자시)' : ''} · ⚙️에서 바꿔요`;
 }
 function openSavedRec(r) {
-  READ[r.kind] = { input: { ...r.input }, result: r.result, recName: r.name, recMemo: r.memo };
+  const birth = r.kind === 'qimen' && r.input?.mode === 'birth';
+  if (r.kind === 'qimen') { prefs.qmMode = birth ? 'birth' : 'now'; savePrefs(); }
+  READ[birth ? 'qimenBirth' : r.kind] = { input: { ...r.input }, result: r.result, recName: r.name, recMemo: r.memo };
   go(r.kind, 'read');
 }
 function savedNote(st) {
@@ -55,6 +57,7 @@ function readMyeongri(view) {
           button('💾 저장', () => openSave('myeongri', { ...i }, null, ''), 'btn no-print')),
         h('p', 'hint', `절입: ${r.info.jeol.name} ${fmtUtc(r.info.jeol.utcMin * 60000)} · 다음 ${r.info.nextJeol.name} ${fmtUtc(r.info.nextJeol.utcMin * 60000)}`),
         i.unknownHour || !i.time ? null : h('p', 'hint', corrNote(r.info)),
+        i.unknownHour || !i.time ? null : h('p', '', button('🧭 같은 생일로 기문 명국 보기', () => { READ.qimenBirth = { input: { date: i.date, time: i.time, male: i.male } }; prefs.qmMode = 'birth'; savePrefs(); go('qimen', 'read'); }, 'link')),
         drawPillars(r)),
       h('p', 'hint', '💡 글자나 칸을 누르면 뜻과 용어 설명이 나와요. 음력 생일은 아직 못 넣어요(양력으로 바꿔서 넣어 주세요).'),
     );
@@ -104,9 +107,14 @@ function readLiuren(view) {
 
 // ---------- 기문 ----------
 function readQimen(view) {
+  const mode = prefs.qmMode === 'birth' ? 'birth' : 'now';
+  const top = h('div', 'panel no-print', h('div', 'row', seg([['now', '⏱ 시가 포국 (지금·점)'], ['birth', '👤 명국 (생년월일시)']], mode, v => { prefs.qmMode = v; savePrefs(); render(); })));
+  const out = h('div');
+  out.style.marginTop = '12px';
+  view.replaceChildren(top, out);
+  if (mode === 'birth') return qimenBirth(top, out);
   const st = READ.qimen ||= { input: { ...nowInput(), question: '' } };
   const i = st.input;
-  const out = h('div');
   const q = inp('text', i.question, { placeholder: '질문·메모 (비워 둬도 돼요)' });
   q.addEventListener('input', () => { i.question = q.value; });
   q.style.width = '100%';
@@ -118,18 +126,39 @@ function readQimen(view) {
     const r = qimenAt(...parseDT(i), timeOpt());
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `${fmtDT(i)} · ${r.pillars.day}일 ${r.shi}시`), h('span', 'grow'),
-        button('💾 저장', () => openSave('qimen', { ...i }, null, i.question), 'btn no-print')),
+        button('💾 저장', () => openSave('qimen', { ...i, mode: 'now' }, null, i.question), 'btn no-print')),
       i.question ? h('p', '', '❓ ', h('b', '', i.question)) : null,
       h('p', 'hint', corrNote(r.pillars)),
       drawQimen(r)),
       h('p', 'hint', '💡 연국(시가)기문 · 전반식 · 절기+부두로 국을 정해요. 홍국기문(홍국수·세·행년)은 아직 없어요.'));
   }
-  view.replaceChildren(
-    h('div', 'panel no-print',
-      h('div', 'form-grid', field('날짜', date), field('시각', time)),
-      h('div', 'row', button('‹ 이전 시', () => step(-2), 'btn'), button('지금', () => { Object.assign(i, nowInput()); date.value = i.date; time.value = i.time; draw(); }, 'btn'), button('다음 시 ›', () => step(2), 'btn')), q),
-    out);
-  out.style.marginTop = '12px';
+  top.append(
+    h('div', 'form-grid', field('날짜', date), field('시각', time)),
+    h('div', 'row', button('‹ 이전 시', () => step(-2), 'btn'), button('지금', () => { Object.assign(i, nowInput()); date.value = i.date; time.value = i.time; draw(); }, 'btn'), button('다음 시 ›', () => step(2), 'btn')), q);
+  draw();
+}
+// 명국: 태어난 시각으로 포국 + 사주 네 기둥과 년·월·일·시 궁 표시
+function qimenBirth(top, out) {
+  const st = READ.qimenBirth ||= { input: { date: '', time: '', male: true } };
+  const i = st.input;
+  const date = inp('date', i.date, { min: '1900-02-05', max: '2100-12-31' }), time = inp('time', i.time);
+  const sex = seg([[true, '남'], [false, '여']], i.male, v => { i.male = v; });
+  function draw() {
+    if (!i.date || !i.time) return out.replaceChildren(h('p', 'empty', '양력 생년월일과 태어난 시각을 넣고 명국 보기를 눌러요. 기문 명국은 시까지 있어야 해요.'));
+    const r = qimenAt(...parseDT(i), timeOpt());
+    const p = r.pillars;
+    out.replaceChildren(savedNote(st), h('div', 'panel',
+      h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · 양력 ${fmtDT(i)}`), h('span', 'grow'),
+        button('💾 저장', () => openSave('qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
+      h('p', '', h('b', 'glyph', `${p.year} ${p.month} ${p.day} ${p.hour}`), h('span', 'muted', ' (년 월 일 시)'), ' ',
+        button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false } }; go('myeongri', 'read'); }, 'link')),
+      h('p', 'hint', corrNote(p)),
+      drawQimen(r)),
+      h('p', 'hint', '💡 연국기문 명반이에요. 태어난 시각의 시가 포국에 년·월·일·시가 놓인 궁을 표시해요. 홍국기문 명반(홍국수·세·행년·대운)은 아직 없어요.'));
+  }
+  top.append(
+    h('div', 'form-grid', field('생년월일 (양력)', date), field('태어난 시각', time), h('div', 'field', '성별', sex)),
+    h('div', 'row', button('명국 보기', () => { i.date = date.value; i.time = time.value; st.recName = null; draw(); }, 'btn primary')));
   draw();
 }
 

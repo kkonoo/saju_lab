@@ -128,6 +128,8 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .kong { color: var(--bad); }
 .tag { display: inline-block; font-size: calc(10px * var(--fs)); padding: 0 5px; border-radius: 5px; background: var(--accent); color: var(--on-accent); line-height: 1.6; }
 .tag.bad { background: var(--bad); }
+.tag.ink { background: var(--text); color: var(--bg); }
+.tag.soft { background: var(--accent-soft); color: var(--accent); }
 
 .cell-btn.oh-tile { background: color-mix(in srgb, var(--c) 18%, var(--surface)); color: var(--c); border-radius: 10px; }
 .panel .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
