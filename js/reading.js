@@ -115,7 +115,8 @@ function readMyeongri(view) {
         i.unknownHour || !i.time ? null : h('p', 'hint', corrNote(r.info)),
         h('p', '', button(`📖 일주 ${r.pillars[2].gan}${r.pillars[2].zhi} 풀이`, () => iljuHint(r.pillars[2].gan + r.pillars[2].zhi), 'link'), i.unknownHour || !i.time ? null : ' · ',
           i.unknownHour || !i.time ? null : button('🧭 같은 생일로 기문 명국 보기', () => { READ.qimenBirth = { input: { date: i.date, time: i.time, male: i.male, cal: i.cal, lunar: i.lunar } }; prefs.qmMode = 'birth'; savePrefs(); go('qimen', 'read'); }, 'link')),
-        drawPillars(r)),
+        chipRow('보기', MR_CHIPS, prefs.mrShow ||= { ...MR_SHOW_DEF }, draw),
+        drawPillars(r, prefs.mrShow)),
       ...aiBox('myeongri', st, r),
       h('p', 'hint', '💡 글자나 칸을 누르면 뜻과 용어 설명이 나와요.'),
     );
@@ -289,17 +290,42 @@ function readTarot(view) {
   const i = st.input;
   const out = h('div');
   out.style.marginTop = '12px';
-  const draw = () => {
-    const sp = SPREADS[i.spread];
+  const shuffle = () => { // 78장을 섞어(방향도 같이) 뒷면으로 펼침 → 자리 수만큼 직접 고름
     const deck = CONTENT.tarot.terms.map(t => t.id).filter(id => /^tr-[mwcsp]\d\d$/.test(id));
     for (let k = deck.length - 1; k > 0; k--) { const j = rand(k + 1); [deck[k], deck[j]] = [deck[j], deck[k]]; }
-    st.result = sp.pos.map((pos, k) => ({ pos, card: deck[k], reversed: prefs.tarotRev && rand(2) === 1, hidden: true }));
+    Object.assign(st, { deck: deck.map(card => ({ card, reversed: prefs.tarotRev && rand(2) === 1 })), picks: [], result: null, dealt: false });
     fresh(st);
-    i.drawnAt = nowInput().date;
     show();
   };
+  const pickCard = k => {
+    const pos = SPREADS[i.spread].pos;
+    if (st.result || st.picks.includes(k)) return;
+    st.picks.push(k);
+    if (st.picks.length === pos.length) {
+      st.result = pos.map((p, n) => ({ pos: p, ...st.deck[st.picks[n]], hidden: true }));
+      i.drawnAt = nowInput().date;
+    }
+    show();
+  };
+  function picking() { // 뒷면으로 펼친 78장에서 고르기
+    const pos = SPREADS[i.spread].pos, n = st.picks.length;
+    const deck = h('div', `deck${st.dealt ? '' : ' deal'}`, ...st.deck.map((c, k) => {
+      const at = st.picks.indexOf(k), b = button(at < 0 ? '' : String(at + 1), () => pickCard(k), `dk${at < 0 ? '' : ' taken'}`);
+      b.style.setProperty('--i', k); b.style.setProperty('--r', `${((k * 37) % 7 - 3) * 0.7}deg`); b.setAttribute('aria-label', at < 0 ? `카드 ${k + 1}` : `${at + 1}번째로 고른 카드`);
+      return b;
+    }));
+    st.dealt = true; // 섞을 때만 펼치는 움직임
+    const slots = h('div', 'slots', ...pos.map((p, k) => h('div', `slot${k < n ? ' filled' : k === n ? ' next' : ''}`, h('span', 'num', k + 1), ` ${p}`)));
+    return h('div', 'panel',
+      h('div', 'panel-head', h('h3', '', `🃏 카드 고르기 `, h('span', 'muted small', `${n} / ${pos.length}`)), h('span', 'grow'),
+        n ? button('↩ 하나 되돌리기', () => { st.picks.pop(); show(); }, 'btn') : null, button('🔀 다시 섞기', shuffle, 'btn')),
+      askText(i) ? h('p', '', '❓ ', h('b', '', askText(i))) : null,
+      h('p', 'hint', `마음이 가는 카드를 ${pos.length}장 골라요. 고른 순서대로 아래 자리에 놓여요. 다음 자리: `, h('b', '', `${n + 1}. ${pos[n]}`)),
+      slots, deck);
+  }
   function show() {
-    if (!st.result) return out.replaceChildren(h('p', 'empty', '스프레드를 고르고 질문을 떠올린 뒤 🃏 뽑기를 눌러요.'));
+    if (st.deck && !st.result) return out.replaceChildren(picking());
+    if (!st.result) return out.replaceChildren(h('p', 'empty', '스프레드를 고르고 질문을 떠올린 뒤 🃏 섞기를 눌러요. 78장을 뒷면으로 펼쳐 놓으면 직접 골라요.'));
     const sp = { name: st.input.spreadName || SPREADS[i.spread].name, question: askText(i), cards: st.result };
     const allOpen = st.result.every(c => !c.hidden);
     out.replaceChildren(savedNote(st), h('div', 'panel',
@@ -313,9 +339,12 @@ function readTarot(view) {
   }
   view.replaceChildren(
     h('div', 'panel no-print',
-      h('div', 'form-grid', h('div', 'field', '스프레드', seg(Object.entries(SPREADS).map(([k, v]) => [k, `${v.name} (${v.pos.length})`]), i.spread, v => { i.spread = v; }))),
-      askForm(i, true), h('div', 'row', button('🃏 뽑기', draw, 'btn primary')),
-      h('p', 'hint', `78장에서 섞어 뽑아요. 역방향 ${prefs.tarotRev ? '켬' : '끔'} (🔧 보정에서 바꿔요).`)),
+      h('div', 'form-grid', h('div', 'field', '스프레드', seg(Object.entries(SPREADS).map(([k, v]) => [k, `${v.name} (${v.pos.length})`]), i.spread, v => {
+        i.spread = v;
+        if (st.deck && !st.result) { st.picks = []; show(); } // 고르는 중이면 새 스프레드로 처음부터
+      }))),
+      askForm(i, true), h('div', 'row', button('🃏 섞기', shuffle, 'btn primary')),
+      h('p', 'hint', `78장을 섞어 뒷면으로 펼쳐요. 역방향 ${prefs.tarotRev ? '켬' : '끔'} (🔧 보정에서 바꿔요).`)),
     out);
   show();
 }

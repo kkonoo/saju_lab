@@ -23,22 +23,25 @@ function cell(cls, kids, onClick) {
 }
 
 // ================= 명리 =================
-function drawPillars(r) {
+// 칩으로 켜고 끄는 층(뼈대인 천간·지지는 늘 보임). show가 없으면(개념 사례 판) 기본값 = 다 켬
+const MR_CHIPS = [['ss', '십신'], ['jjg', '지장간'], ['un', '12운성'], ['oh', '오행 개수'], ['rel', '합·충'], ['daeun', '대운'], ['seun', '세운']];
+const MR_SHOW_DEF = Object.fromEntries(MR_CHIPS.map(([k]) => [k, true]));
+function drawPillars(r, show = MR_SHOW_DEF) {
   const cols = [...r.pillars].reverse(); // 시 일 월 년 (오른쪽이 년)
   const g = h('div', `pillars${cols.length === 3 ? ' three' : ''}`);
-  const row = (label, f) => { g.append(h('div', 'lbl', label), ...cols.map(f)); };
+  const row = (label, f, k) => { if (!k || show[k]) g.append(h('div', 'lbl', label), ...cols.map(f)); };
   row('', p => h('div', 'head', `${p.pos}주`));
-  row('십신', p => cell('ss', khs(p.ganSs, SS_HJ[p.ganSs]), () => ssHint(p.ganSs, `${p.pos}간 ${p.gan}`)));
+  row('십신', p => cell('ss', khs(p.ganSs, SS_HJ[p.ganSs]), () => ssHint(p.ganSs, `${p.pos}간 ${p.gan}`)), 'ss');
   row('천간', p => cell(`big glyph oh-tile ${ohCls(p.gan)}`, p.gan, () => ganHint(p, r)));
   row('지지', p => cell(`big glyph oh-tile ${ohCls(p.zhi)}`, p.zhi, () => zhiHint(p, r)));
-  row('십신', p => cell('ss', khs(p.zhiSs, SS_HJ[p.zhiSs]), () => ssHint(p.zhiSs, `${p.pos}지 ${p.zhi}의 정기`)));
-  row('지장간', p => cell('jjg', p.jjg.map(x => x.g).join(''), () => zhiHint(p, r)));
-  row('12운성', p => cell('ss', khs(p.unseong, UN_HJ[p.unseong]?.[0]), () => openHint(`12운성 · ${p.unseong}(${UN_HJ[p.unseong]?.[0]})`, [`일간 ${r.dayGan}이(가) ${p.pos}지 ${p.zhi}에서 '${p.unseong}'이에요.`, short('mr-12unseong')], ['mr-12unseong'])));
-  const ohbar = h('div', 'ohbar', ...Object.entries(r.count).map(([o, n]) => cell(`oh-tile oh-${o}`, `${o} ${OH_KO[o]} ${n}`, () => openHint(`${OH_KO[o]}(${o}) ${n}개`, [`천간·지지 겉글자만 센 개수예요(지장간 제외). 일간 ${r.dayGan}(${OH_KO[ohOf(r.dayGan)]}) 기준으로 ${ohRole(ohOf(r.dayGan), o)}이에요.`, short('mr-ohaeng-balance')], ['mr-ohaeng-balance', 'base-ohaeng']))));
-  const rel = r.relations.length ? h('div', 'chips', h('span', 'hint', '🔗 합·충'), ...r.relations.map(x => button(x.text, () => openTermDlg(x.term), 'chip'))) : null;
+  row('십신', p => cell('ss', khs(p.zhiSs, SS_HJ[p.zhiSs]), () => ssHint(p.zhiSs, `${p.pos}지 ${p.zhi}의 정기`)), 'ss');
+  row('지장간', p => cell('jjg', p.jjg.map(x => x.g).join(''), () => zhiHint(p, r)), 'jjg');
+  row('12운성', p => cell('ss', khs(p.unseong, UN_HJ[p.unseong]?.[0]), () => openHint(`12운성 · ${p.unseong}(${UN_HJ[p.unseong]?.[0]})`, [`일간 ${r.dayGan}이(가) ${p.pos}지 ${p.zhi}에서 '${p.unseong}'이에요.`, short('mr-12unseong')], ['mr-12unseong'])), 'un');
+  const ohbar = show.oh && h('div', 'ohbar', ...Object.entries(r.count).map(([o, n]) => cell(`oh-tile oh-${o}`, `${o} ${OH_KO[o]} ${n}`, () => openHint(`${OH_KO[o]}(${o}) ${n}개`, [`천간·지지 겉글자만 센 개수예요(지장간 제외). 일간 ${r.dayGan}(${OH_KO[ohOf(r.dayGan)]}) 기준으로 ${ohRole(ohOf(r.dayGan), o)}이에요.`, short('mr-ohaeng-balance')], ['mr-ohaeng-balance', 'base-ohaeng']))));
+  const rel = show.rel && r.relations.length ? h('div', 'chips', h('span', 'hint', '🔗 합·충'), ...r.relations.map(x => button(x.text, () => openTermDlg(x.term), 'chip'))) : null;
   const meta = h('div', 'board-meta', h('span', '', '공망 ', h('b', 'kong', r.kong.join(''))), h('span', '', '일간 ', h('b', '', charInfo(r.dayGan))));
   const parts = [g, ohbar, rel, meta];
-  if (r.daeun) parts.push(...daeunStrip(r));
+  if (r.daeun) parts.push(...daeunStrip(r, show));
   return h('div', 'board', ...parts);
 }
 function ohRole(me, o) {
@@ -89,24 +92,23 @@ function iljuHint(gz) {
     ...named,
   ], ['mr-ilgan', SS_ID[ss], 'mr-jijanggan', 'mr-12unseong', 'mr-gungwi', named.length ? 'mr-sinsal' : null].filter(Boolean));
 }
-function daeunStrip(r) {
+function daeunStrip(r, show) {
   const nowYear = new Date().getFullYear(), age = nowYear - new Date(r.info.utc).getUTCFullYear() + 1; // 세는 나이
   const strip = h('div', 'daeun');
   for (const d of r.daeun) {
     const now = age >= d.age && age < d.age + 10;
-    strip.append(cell(now ? 'now' : '', [h('div', 'age', d.age), h('div', `gz glyph`, h('span', `oh-cell ${ohCls(d.gz[0])}`, d.gz[0]), h('br'), h('span', `oh-cell ${ohCls(d.gz[1])}`, d.gz[1])), h('div', 'ss2', `${d.ganSs}·${d.zhiSs}`)],
+    strip.append(cell(now ? 'now' : '', [h('div', 'age', d.age), h('div', `gz glyph`, h('span', `oh-cell ${ohCls(d.gz[0])}`, d.gz[0]), h('br'), h('span', `oh-cell ${ohCls(d.gz[1])}`, d.gz[1])), show.ss && h('div', 'ss2', `${d.ganSs}·${d.zhiSs}`)],
       () => openHint(`대운 ${d.gz} (${d.age}~${d.age + 9}세)`, [`천간 ${d.gz[0]}은 ${d.ganSs}, 지지 ${d.gz[1]}는 ${d.zhiSs}(정기 기준), 12운성 ${d.unseong}이에요.`, '대운은 보통 앞 5년은 천간, 뒤 5년은 지지를 더 본다고 하지만 10년을 하나로 보는 쪽도 있어요.'], ['mr-daeun', SS_ID[d.ganSs], SS_ID[d.zhiSs]])));
   }
   const seunRow = h('div', 'daeun');
   for (let y = nowYear; y < nowYear + 10; y++) {
     const s = seun(y, r.dayGan);
-    seunRow.append(cell(y === nowYear ? 'now' : '', [h('div', 'age', y), h('div', 'gz glyph', h('span', `oh-cell ${ohCls(s.gz[0])}`, s.gz[0]), h('br'), h('span', `oh-cell ${ohCls(s.gz[1])}`, s.gz[1])), h('div', 'ss2', `${s.ganSs}·${s.zhiSs}`)],
+    seunRow.append(cell(y === nowYear ? 'now' : '', [h('div', 'age', y), h('div', 'gz glyph', h('span', `oh-cell ${ohCls(s.gz[0])}`, s.gz[0]), h('br'), h('span', `oh-cell ${ohCls(s.gz[1])}`, s.gz[1])), show.ss && h('div', 'ss2', `${s.ganSs}·${s.zhiSs}`)],
       () => openHint(`${y}년 세운 ${s.gz}`, [`입춘부터 다음 입춘 전까지예요. 천간 ${s.gz[0]} ${s.ganSs}, 지지 ${s.gz[1]} ${s.zhiSs}, 12운성 ${s.unseong}.`], ['mr-seun', SS_ID[s.ganSs], SS_ID[s.zhiSs]])));
   }
   return [
-    h('h3', '', `📈 대운 `, h('span', 'hint', `${r.forward ? '순행' : '역행'} · 대운수 ${r.daeunsu} (절입까지 ${r.daeunDays.toFixed(1)}일 ÷ 3) · 지금 ${age}세(세는 나이)`)),
-    strip,
-    h('h3', '', '📅 세운'), seunRow,
+    ...(show.daeun ? [h('h3', '', `📈 대운 `, h('span', 'hint', `${r.forward ? '순행' : '역행'} · 대운수 ${r.daeunsu} (절입까지 ${r.daeunDays.toFixed(1)}일 ÷ 3) · 지금 ${age}세(세는 나이)`)), strip] : []),
+    ...(show.seun ? [h('h3', '', '📅 세운'), seunRow] : []),
   ];
 }
 
