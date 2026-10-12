@@ -108,3 +108,85 @@ function qimenMarks(r, p) {
   });
   return marks;
 }
+
+// ================= 홍국(洪局) =================
+// 참고 앱 판(1993-01-29 09:00 곤명 원명국, 2026 年局)과 맞춰 정한 규칙. 남자 대운·행년 방향은 아직 맞춰 보지 못해 추정.
+// 홍국수: 천간수 甲1…癸10, 지지수 子1…亥12. 천반 중궁 = 천간수 합 ÷ 9 나머지(0이면 9), 바깥은 중궁수 − 궁 번호(역포)
+// 지반 중궁 = 지지수 합 ÷ 9 나머지, 바깥은 중궁수 + 궁 번호(순포). 10의 자리는 버리고 0은 十.
+const HK_OH = n => '水火木金土'[(n - 1) % 5];                  // 1·6 水, 2·7 火, 3·8 木, 4·9 金, 5·10 土 (하도)
+const HK_GAN = { 1: '壬', 2: '丁', 3: '甲', 4: '辛', 5: '戊', 6: '癸', 7: '丙', 8: '乙', 9: '庚', 10: '己' }; // 홀수 양, 짝수 음
+const HK_JI = { 1: '子', 2: '巳', 3: '寅', 4: '酉', 5: '戌', 6: '亥', 7: '午', 8: '卯', 9: '申', 10: '未' };
+const HK_HAN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+const HK_REL_KO = { 兄: '형제', 孫: '자손', 財: '재', 官: '관', 鬼: '귀', 父: '부모', 世: '세(나)' };
+const HK_YUNYEON = ['生氣', '天宜', '絶體', '遊魂', '禍害', '福德', '絶命', '歸魂'];
+const HK_GUA_BITS = { 1: 2, 2: 0, 3: 1, 4: 6, 6: 7, 7: 3, 8: 4, 9: 5 }; // 궁 → 괘(아래·가운데·위 효, 양=1)
+const HK_FLIP = [4, 2, 1, 2, 4, 2, 1, 2];                         // 위 → 가운데 → 아래 → 가운데 …
+const HK_PAIRS = { // 지지 관계(표에 적힌 순서 그대로 보여 줌)
+  沖: ['子午', '丑未', '寅申', '卯酉', '辰戌', '巳亥'], 怨嗔: ['子未', '丑午', '寅酉', '卯申', '辰亥', '巳戌'],
+  刑: ['寅巳', '巳申', '申寅', '丑戌', '戌未', '未丑', '子卯'], 破: ['子酉', '卯午', '辰丑', '戌未', '寅亥', '巳申'], 害: ['子未', '丑午', '寅巳', '卯辰', '申亥', '酉戌'],
+};
+function hkJiRel(a, b) { // { 沖: '子午', 刑: '寅巳', … } 있는 것만
+  const out = {};
+  for (const [k, list] of Object.entries(HK_PAIRS)) { const hit = list.find(x => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a)); if (hit) out[k] = hit; }
+  return out;
+}
+// 칸 표시: 沖 > 刑 > 破, 害만 있으면 殺, 刑과 害가 같이 있으면 刑(害). 원진(+害)은 칸에 안 씀(局 이름에만)
+function hkRelLabel(n1, n2) {
+  const r = hkJiRel(HK_JI[n1], HK_JI[n2]);
+  if (r.沖) return `${r.沖}沖`;
+  if (r.怨嗔) return '';
+  if (r.刑) return `${r.刑}刑${r.害 ? '(害)' : ''}`;
+  if (r.破) return `${r.破}破`;
+  if (r.害) return `${r.害}殺`;
+  return '';
+}
+function hkGuk(nh, ne) { // 중궁 천반·지반으로 局 이름
+  const a = HK_OH(nh), b = HK_OH(ne);
+  if (GEUK[a] === b || GEUK[b] === a) return '戰局';
+  const r = hkJiRel(HK_JI[nh], HK_JI[ne]);
+  return r.沖 ? '沖局' : r.怨嗔 ? '怨嗔局' : r.刑 || r.破 || r.害 ? '刑破害局' : '和局';
+}
+function hkYuk(s, n) { // 世 수 s 기준 n의 육친
+  const a = HK_OH(s), b = HK_OH(n);
+  if (a === b) return '兄';
+  if (SAENG[a] === b) return '孫';
+  if (GEUK[a] === b) return '財';
+  if (GEUK[b] === a) return s % 2 === n % 2 ? '鬼' : '官';
+  return '父';
+}
+// 행년: 그해가 드는 궁. 여자는 甲子년이 간8궁, 해마다 한 궁씩 순행(참고 앱과 맞춤). 남자는 태7궁에서 역행(추정)
+function hkHaengnyeon(Y, male) { return hkHaengnyeon_(Y, male); }
+const hkHaengnyeon_ = (Y, male) => { const k = mod(Y - 1984, 60); return male ? mod(6 - k, 9) + 1 : mod(k + 7, 9) + 1; };
+// p: 사주 { year, month, day, hour }, sajuYear: 태어난 해(입춘 기준) — 행년 나이 계산용
+function honggukCalc(p, male, sajuYear) {
+  const gz = [p.year, p.month, p.day, p.hour];
+  const sumG = gz.reduce((a, g) => a + GAN.indexOf(g[0]) + 1, 0), sumJ = gz.reduce((a, g) => a + JI.indexOf(g[1]) + 1, 0);
+  const ch = sumG % 9 || 9, ce = sumJ % 9 || 9;
+  const n10 = v => mod(v, 10) || 10;
+  const heaven = {}, earth = {};
+  for (let q = 1; q <= 9; q++) { heaven[q] = q === 5 ? ch : n10(ch - q); earth[q] = q === 5 ? ce : n10(ce + q); }
+  const missH = mod(ch + 5, 10), missE = mod(ce + 5, 10); // 빠진 수(十이 그 몫을 함)
+  const yrs = (n, miss) => (n === 10 ? miss : n);
+  const se = +Object.keys(QM_GUNG_JI).find(k => QM_GUNG_JI[k].includes(p.day[1])); // 世: 일지가 속한 궁
+  const s = earth[se], seGan = HK_GAN[s];
+  const base = ce === 5 ? 2 : ce; // 유년 본괘: 지반 중궁수의 궁(5면 곤2궁에 기궁 — 추정)
+  const yunyeon = {};
+  let bits = HK_GUA_BITS[base];
+  HK_FLIP.forEach((f, k) => { bits ^= f; yunyeon[+Object.keys(HK_GUA_BITS).find(q => HK_GUA_BITS[q] === bits)] = HK_YUNYEON[k]; });
+  // 대운: 1~45세는 世부터 지반수만큼 해씩(여자 순행·남자 역행), 46~90세는 世부터 천반수만큼(여자 역행·남자 순행). 남자 방향은 추정
+  const step = (q, dir) => mod(q - 1 + dir, 9) + 1;
+  const daeun = {};
+  let age = 1, q = se;
+  for (let k = 0; k < 9; k++, q = step(q, male ? -1 : 1)) { const n = yrs(earth[q], missE); (daeun[q] ||= {}).earth = [age, age + n - 1]; age += n; }
+  q = se;
+  for (let k = 0; k < 9; k++, q = step(q, male ? 1 : -1)) { const n = yrs(heaven[q], missH); daeun[q].heaven = [age, age + n - 1]; age += n; }
+  const palaces = {};
+  for (let k = 1; k <= 9; k++) palaces[k] = {
+    heaven: heaven[k], earth: earth[k],
+    relH: hkYuk(s, heaven[k]), relE: k === se ? '世' : hkYuk(s, earth[k]),
+    yunyeon: yunyeon[k] || '', unseong: k === 5 ? [] : [...QM_GUNG_JI[k]].map(z => ({ z, u: unseong(seGan, z) })),
+    daeun: daeun[k], label: hkRelLabel(heaven[k], earth[k]), ages: [],
+  };
+  for (let a = 1; a <= 90; a++) palaces[hkHaengnyeon(sajuYear + a - 1, male)].ages.push(a);
+  return { type: 'hongguk', sumG, sumJ, ch, ce, missH, missE, se, seNum: s, seGan, base, guk: hkGuk(ch, ce), palaces, kongDay: xunOf(p.day).kong, dayJi: p.day[1], male, sajuYear };
+}

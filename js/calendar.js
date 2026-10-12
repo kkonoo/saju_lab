@@ -106,9 +106,25 @@ function lunarToSolar(y, m, d, leap = false) {
   return { date: `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}` };
 }
 
+// 양력 'YYYY-MM-DD' → 음력 { y, m, d, leap } (음력 1900~2100 안일 때)
+function solarToLunar(date) {
+  const D = Math.floor(Date.UTC(...date.split('-').map((v, k) => +v - (k === 1 ? 1 : 0))) / 86400000);
+  for (let k = LUNAR.rows.length - 1; k >= 0; k--) {
+    const [start, lp, bits] = LUNAR.rows[k];
+    if (D < start) continue;
+    let off = D - start;
+    for (let j = 0; j < 12 + (lp ? 1 : 0); j++) {
+      const len = 29 + ((bits >> j) & 1);
+      if (off < len) return { y: LUNAR.from + k, m: j + 1 - (lp && j >= lp ? 1 : 0), d: off + 1, leap: !!lp && j === lp };
+      off -= len;
+    }
+  }
+  return null;
+}
+
 function fmtUtc(ms) {
   const d = new Date(ms + 540 * 60000);
   return `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
-if (typeof module !== 'undefined') module.exports = { GAN, JI, ko, gz60, gzIndex, ohOf, isYangGan, isYangJi, SAENG, GEUK, OH_KO, fourPillars, lastJeolgi, xunOf, dunGan, seoulToUtc, fmtUtc, setJeolgi: j => (JEOLGI = j), mod, JEOLGI_NAMES, lunarToSolar, setLunar: j => (LUNAR = j) };
+if (typeof module !== 'undefined') module.exports = { GAN, JI, ko, gz60, gzIndex, ohOf, isYangGan, isYangJi, SAENG, GEUK, OH_KO, fourPillars, lastJeolgi, xunOf, dunGan, seoulToUtc, fmtUtc, setJeolgi: j => (JEOLGI = j), mod, JEOLGI_NAMES, lunarToSolar, solarToLunar, setLunar: j => (LUNAR = j) };

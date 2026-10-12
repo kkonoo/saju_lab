@@ -187,7 +187,55 @@ function keHint(k, r, ai) {
 const GIL_DOOR = ['개문', '휴문', '생문'], HYUNG_DOOR = ['상문', '사문', '경문(驚)'];
 const QM_GUA = { 1: ['감(坎)', '水', '북'], 8: ['간(艮)', '土', '북동'], 3: ['진(震)', '木', '동'], 4: ['손(巽)', '木', '남동'], 9: ['리(離)', '火', '남'], 2: ['곤(坤)', '土', '남서'], 7: ['태(兌)', '金', '서'], 6: ['건(乾)', '金', '북서'], 5: ['중궁', '土', '가운데'] };
 const QM_WHO = { 년: '윗사람·조상·나라', 월: '형제·동료·부모 세대', 일: '나', 시: '자녀·아랫사람, 점에서는 묻는 일' };
-function drawQimen(r, aiFor) {
+
+// ---------- 홍국 칸 (기문 명국 · 年局 · 月局 · 日局) ----------
+const HK_YUN_MEAN = { 生氣: '살아나는 기운 — 시작·활력', 天宜: '하늘이 돕는 자리 — 건강·도와주는 사람', 絶體: '몸이 끊기는 자리 — 막힘·지침', 遊魂: '떠도는 혼 — 이동·들뜸',
+  禍害: '재앙과 해 — 다툼·손해', 福德: '복과 덕 — 안정·복', 絶命: '목숨이 끊기는 자리 — 가장 흉하게 봐요', 歸魂: '돌아오는 혼 — 본자리·마무리' };
+const HK_REL_MEAN = { // [남자, 여자] — 유파마다 조금씩 달라요
+  兄: ['형제·친구·동료, 경쟁자', '형제·친구·동료, 경쟁자'], 孫: ['자녀·아랫사람, 재주·표현 (장모로 보기도)', '자녀·아랫사람, 재주·표현'],
+  財: ['아내·재물 (아버지로 보기도)', '재물·시어머니 (아버지로 보기도)'], 官: ['직장·명예·윗사람 (딸로 보기도)', '남편·직장·명예'],
+  鬼: ['질병·관재·경쟁자 (아들로 보기도)', '애인(남편 아닌 남자)·질병·관재'], 父: ['부모·윗사람·문서·학업', '부모·윗사람·문서·학업'], 世: ['나 자신', '나 자신'] };
+const HK_REL_WHY = { 兄: '같은 오행', 孫: '내가 생하는 오행', 財: '내가 극하는 오행', 官: '나를 극하고 음양이 다른 것', 鬼: '나를 극하고 음양이 같은 것', 父: '나를 생하는 오행' };
+const HK_GUK_MEAN = { 和局: '천반·지반이 서로 생하거나 같은 기운이라 순하게 흘러요.', 戰局: '천반·지반 오행이 서로 극해서 부딪히고 바뀌는 판으로 봐요.', 沖局: '천반·지반 지지가 충이라 부딪힘·이동이 많은 판으로 봐요.',
+  怨嗔局: '천반·지반 지지가 원진이라 원망·애증이 얽히는 판으로 봐요.', 刑破害局: '천반·지반 지지가 형·파·해 관계라 꺾이고 깨지는 일을 조심하는 판으로 봐요.' };
+const UN_KO = { 장생: '생', 목욕: '욕', 관대: '대', 건록: '록', 제왕: '왕', 쇠: '쇠', 병: '병', 사: '사', 묘: '묘', 절: '절', 태: '태', 양: '양' };
+function hkCell(p, hv) {
+  const hk = hv.hk, x = hk.palaces[p], g = hk.male ? 0 : 1, sOh = HK_OH(hk.seNum);
+  const num = (n, side) => tip(`hk-num oh-tile oh-${HK_OH(n)}`, HK_HAN[n], `${side}반수 ${HK_HAN[n]}(${n})`, [
+    `${OH_KO[HK_OH(n)]}(${HK_OH(n)})·${n % 2 ? '양' : '음'}, 지지로는 ${HK_JI[n]}`,
+    side === '천' ? `천간수(甲1…癸10) 합 ${hk.sumG}을 9로 나눈 나머지 ${hk.ch}가 천반 중궁수예요. 바깥 궁은 ${hk.ch}에서 궁 번호를 빼서 놓아요(역포, 0은 十).`
+      : `지지수(子1…亥12) 합 ${hk.sumJ}을 9로 나눈 나머지 ${hk.ce}가 지반 중궁수예요. 바깥 궁은 ${hk.ce}에 궁 번호를 더해 놓아요(순포, 일의 자리만, 0은 十).`,
+    n === 10 ? `十은 빠진 수 ${side === '천' ? hk.missH : hk.missE}의 몫을 해요(대운 햇수).` : '', short('qm-hk-su')], ['qm-hk-su']);
+  const rel = (r, n) => tip(`hk-rel${r === '世' ? ' se' : ''}`, r, `${r} — ${HK_REL_KO[r]}`, [
+    r === '世' ? `일지 ${hk.dayJi}가 속한 궁이라 世(나의 자리)예요. 육친은 모두 世의 지반수 ${HK_HAN[hk.seNum]}(${OH_KO[sOh]})를 기준으로 봐요.`
+      : `世의 지반수 ${HK_HAN[hk.seNum]}(${OH_KO[sOh]}·${hk.seNum % 2 ? '양' : '음'}) 기준으로 ${HK_HAN[n]}(${OH_KO[HK_OH(n)]}·${n % 2 ? '양' : '음'})는 ${HK_REL_WHY[r]}라 ${r}예요.`,
+    `${hk.male ? '남자' : '여자'}에게는 ${HK_REL_MEAN[r][g]}`, r === '世' ? '' : `(${hk.male ? '여자' : '남자'}라면 ${HK_REL_MEAN[r][1 - g]}) 유파마다 조금씩 달라요.`], [r === '世' ? 'qm-hk-se' : 'qm-hk-yuk']);
+  const du = (a, side) => a && hv.daeun ? tip('hk-du', `${a[0]}~${a[1]}`, `대운 ${a[0]}~${a[1]}세 (${side}반)`, [
+    `1~45세는 世 궁(${QM_GUNG[hk.se]})부터 낙서 순서로 ${hk.male ? '거꾸로(남자, 추정)' : '차례로'} 돌며 지반수만큼 해를 나눠요. 46~90세는 다시 世 궁부터 ${hk.male ? '차례로(추정)' : '거꾸로'} 천반수만큼 나눠요.`,
+    `十은 빠진 수만큼(천반 ${hk.missH || '-'}, 지반 ${hk.missE || '-'}), 아홉 궁을 다 돌면 1+2+…+9 = 45년이에요.`, short('qm-hk-daeun')], ['qm-hk-daeun']) : '';
+  const rowH = h('div', 'hk-row', num(x.heaven, '천'), rel(x.relH, x.heaven), du(x.daeun?.heaven, '천'));
+  const rowE = h('div', 'hk-row', num(x.earth, '지'), rel(x.relE, x.earth), du(x.daeun?.earth, '지'));
+  const yun = x.yunyeon ? tip('hk-yun', x.yunyeon, `${x.yunyeon}`, [HK_YUN_MEAN[x.yunyeon],
+    `지반 중궁수 ${hk.ce} → ${QM_GUNG[hk.base]}의 괘를 본괘로 삼고, 효를 위·가운데·아래·가운데… 차례로 바꿔 가며 생기·천의·절체·유혼·화해·복덕·절명·귀혼을 붙여요(본괘 자리가 귀혼).`, short('qm-hk-yunyeon')], ['qm-hk-yunyeon', 'base-palgwae']) : '';
+  const un = x.unseong.length ? tip('hk-un', x.unseong.map(u => `${u.z}${UN_KO[u.u]}`).join(' '), '12운성 (홍국)', [
+    ...x.unseong.map(u => `${u.z}: ${u.u}`), `世의 지반수 ${HK_HAN[hk.seNum]}를 천간 ${hk.seGan}(${OH_KO[ohOf(hk.seGan)]}·${isYangGan(hk.seGan) ? '양' : '음'})으로 보고, 이 궁의 지지에서 12운성을 매겨요.`], ['mr-12unseong', 'qm-hk-se']) : '';
+  const lab = x.label ? tip('hk-lab', x.label, x.label, [`천반수 ${HK_HAN[x.heaven]}를 지지 ${HK_JI[x.heaven]}, 지반수 ${HK_HAN[x.earth]}를 ${HK_JI[x.earth]}로 보면 둘이 ${x.label.slice(2)} 관계예요.`,
+    '형(刑)은 꺾임·다툼, 파(破)는 깨짐, 해·살(害·殺)은 해침·손해, 충(沖)은 부딪힘·이동으로 봐요.', short('qm-hk-rel')], ['qm-hk-rel', 'base-hyeong', 'base-chung']) : '';
+  const kong = p !== 5 && [...QM_GUNG_JI[p]].some(z => hk.kongDay.includes(z)) ? tip('hk-kong', '○', `일공 ${hk.kongDay.join('')}`, [`일주 순(旬)의 공망 ${hk.kongDay.join('')}이 이 궁 지지에 들어요. 이 궁의 일은 비거나 늦어진다고 봐요.`], ['base-gongmang']) : '';
+  const yr = hv.years?.[p] ? tip(`hk-yr${hv.years[p] === hv.thisYear ? ' now' : ''}`, String(hv.years[p]), `${hv.years[p]}년 (${hv.years[p] - hk.sajuYear + 1}세)`, [
+    `행년이 이 궁에 드는 해예요. 올해부터 9년을 아홉 궁에 하나씩 적었어요${hv.years[p] === hv.thisYear ? ' — 올해예요' : ''}.`, short('qm-hk-haeng')], ['qm-hk-haeng']) : '';
+  const mo = hv.months?.[p]?.length ? tip(`hk-yr${hv.months[p].includes(hv.nowMonth) ? ' now' : ''}`, `${hv.months[p].join('·')}월`, `음력 ${hv.months[p].join('·')}월`, [
+    `이 해의 달이 머무는 궁이에요. 행년 궁에서 1월을 시작해 행년과 같은 방향으로 한 궁씩 옮겨요.`, '(추정 규칙 — 참고 앱과 아직 맞춰 보지 못했어요.)', short('qm-hk-haeng')], ['qm-hk-haeng', 'qm-hk-gukgi']) : '';
+  const ages = hv.ages && x.ages.length ? tip('hk-ages', x.ages.join(','), '행년 나이', [`이 나이에 운이 이 궁에 머물러요(세는 나이, ${hk.sajuYear}년이 1세).`,
+    hk.male ? '남자: 甲子년(1984·2044)을 태7궁에 두고 해마다 한 궁씩 거꾸로(추정 — 참고 앱과 아직 못 맞춤).' : '여자: 甲子년(1984·2044)을 간8궁에 두고 해마다 한 궁씩 차례로(참고 앱과 맞춤).', short('qm-hk-haeng')], ['qm-hk-haeng']) : '';
+  const hint = [
+    `홍국: 천반수 ${HK_HAN[x.heaven]}(${x.relH}) · 지반수 ${HK_HAN[x.earth]}(${x.relE})`, x.daeun ? `대운: 천반 ${x.daeun.heaven.join('~')}세 · 지반 ${x.daeun.earth.join('~')}세` : '',
+    x.yunyeon ? `유년 ${x.yunyeon} — ${HK_YUN_MEAN[x.yunyeon]}` : '', x.unseong.length ? `12운성 ${x.unseong.map(u => `${u.z} ${u.u}`).join(' · ')}` : '',
+    x.label ? `${x.label}` : '', hv.years?.[p] ? `${hv.years[p]}년이 이 궁` : '', hv.months?.[p]?.length ? `음력 ${hv.months[p].join('·')}월이 이 궁(추정)` : ''].filter(Boolean);
+  const focus = `홍국 천반수 ${x.heaven}(${x.relH}) 지반수 ${x.earth}(${x.relE})${x.daeun ? ` 대운 ${x.daeun.heaven.join('~')}/${x.daeun.earth.join('~')}세` : ''}${x.yunyeon ? ` ${x.yunyeon}` : ''}${x.label ? ` ${x.label}` : ''}`;
+  return { top: h('div', 'hk-top', yr, mo, h('span', 'grow'), kong), lab: lab ? h('div', 'hk-top', lab) : '', rowH, rowE, rowY: h('div', 'hk-row small', yun, ' ', un), ages, hint, focus };
+}
+function drawQimen(r, aiFor, hv) { // hv: 홍국 { hk, years, months, ages, layer }
   const grid = h('div', 'qm-grid');
   const P = r.pillars ? { 년: r.pillars.year, 월: r.pillars.month, 일: r.pillars.day, 시: r.pillars.hour } : {};
   for (const p of [4, 9, 2, 3, 5, 7, 8, 1, 6]) {
@@ -206,14 +254,22 @@ function drawQimen(r, aiFor) {
         ...mk.gan.map(w => `${w}간 — ${QM_WHO[w]}`)], ['qm-jiban', 'qm-samgi-yugui']) : null,
       mk?.ji.length ? tip('tag soft', `${mk.ji.join('')}지`, `${mk.ji.map(w => `${w}지 ${P[w]?.[1] || ''}`).join(' · ')}`, [
         `${mk.ji.join('·')} 지지가 속한 궁이에요(${gua}: ${[...(QM_GUNG_JI[p] || '')].join('·')}).`, ...mk.ji.map(w => `${w}지 — ${QM_WHO[w]}`)], ['qm-gugung']) : null);
+    const hc = hv && hv.layer !== 'yeon' ? hkCell(p, hv) : null, yeon = !hc || hv.layer === 'both';
+    const now = hc && ((hv.years?.[p] && hv.years[p] === hv.thisYear) || (hv.months?.[p] || []).includes(hv.nowMonth));
+    if (hc && hv.haeng === p) marks.prepend(tip('tag warn', '行年', `행년 ${hv.haengYear}`, [`${hv.haengYear}년(${hv.haengYear - hv.hk.sajuYear + 1}세) 행년이 드는 궁이에요${hv.haengFrom5 ? '(중5궁 → 곤2궁 기궁)' : ''}.`, short('qm-hk-haeng')], ['qm-hk-haeng']));
     const earth = tip('e', x.earth, `지반 ${x.earth}`, [charInfo(x.earth), `${r.dun} ${r.ju}국이라 이 궁 지반에 ${x.earth}가 놓여요. 지반은 국수로 정해지고 시가 바뀌어도 그대로예요.`, short('qm-jiban')], ['qm-jiban', 'qm-guksu', 'qm-samgi-yugui']);
     if (p === 5) {
-      grid.append(box('qm-cell center', [gname, marks, h('div', 'stems glyph', earth),
-        h('div', '', tip('small muted', `${r.dun} ${r.ju}국`, `${r.dun} ${r.ju}국`, [r.term ? `${r.term} ${r.yuan}(부두 ${r.futou})이라 ${r.dun} ${r.ju}국이에요.` : '', short('qm-guksu')], ['qm-guksu', 'qm-yangdun-eumdun', 'qm-samwon', 'qm-budu'])),
-        h('div', '', tip('small muted', `${r.shi}시`, `${r.shi}시 · 순수 ${r.xun}`, [`시주 ${r.shi}는 ${r.xun} 순이라 순수 의는 ${r.fuYi}예요. 직부 ${r.zhifu}, 직사 ${r.zhishi}.`, short('qm-sunsu')], ['qm-sunsu', 'qm-jikbu', 'qm-jiksa']))],
-        () => openHint(QM_GUNG[5], [gungLine, `지반 ${x.earth}. 중궁은 문·신이 없고, 이 앱에서는 곤2궁에 붙여(기궁) 움직여요.`, r.term ? `${r.term} ${r.yuan}(부두 ${r.futou}) · ${r.dun} ${r.ju}국 · ${r.shi}시` : `${r.dun} ${r.ju}국 · ${r.shi}시`,
+      const hk = hv?.hk;
+      grid.append(box(`qm-cell center${hc ? ' hk' : ''}${now ? ' now' : ''}`, [gname, marks,
+        hc ? h('div', 'hk-top', tip('hk-guk', hk.guk, hk.guk, [`중궁 천반수 ${HK_HAN[hk.ch]}(${OH_KO[HK_OH(hk.ch)]}) · 지반수 ${HK_HAN[hk.ce]}(${OH_KO[HK_OH(hk.ce)]})`, HK_GUK_MEAN[hk.guk],
+          '바탕 다섯 국(和局·戰局·沖局·怨嗔局·刑破害局): 두 수의 오행이 서로 극하면 戰局, 아니면 두 수를 지지로 바꿨을 때의 충·원진·형파해로 정해요(참고 앱과 맞춘 규칙).', short('qm-hk-guk')], ['qm-hk-guk']),
+          hc.top.querySelector('.hk-yr') || '', h('span', 'grow')) : '',
+        hc ? hc.lab : '', hc ? hc.rowH : '', hc ? hc.rowE : '', yeon ? h('div', 'stems glyph', earth) : '',
+        yeon ? h('div', '', tip('small muted', `${r.dun} ${r.ju}국`, `${r.dun} ${r.ju}국`, [r.term ? `${r.term} ${r.yuan}(부두 ${r.futou})이라 ${r.dun} ${r.ju}국이에요.` : '', short('qm-guksu')], ['qm-guksu', 'qm-yangdun-eumdun', 'qm-samwon', 'qm-budu'])) : '',
+        yeon ? h('div', '', tip('small muted', `${r.shi}시`, `${r.shi}시 · 순수 ${r.xun}`, [`시주 ${r.shi}는 ${r.xun} 순이라 순수 의는 ${r.fuYi}예요. 직부 ${r.zhifu}, 직사 ${r.zhishi}.`, short('qm-sunsu')], ['qm-sunsu', 'qm-jikbu', 'qm-jiksa'])) : '', hc ? hc.ages : ''],
+        () => openHint(QM_GUNG[5], [gungLine, hc ? `${hk.guk} — ${HK_GUK_MEAN[hk.guk]}` : '', ...(hc ? hc.hint : []), `지반 ${x.earth}. 중궁은 문·신이 없고, 이 앱에서는 곤2궁에 붙여(기궁) 움직여요.`, r.term ? `${r.term} ${r.yuan}(부두 ${r.futou}) · ${r.dun} ${r.ju}국 · ${r.shi}시` : `${r.dun} ${r.ju}국 · ${r.shi}시`,
           mk?.gan.length ? `${mk.gan.join('·')} 천간이 지반에 앉은 궁이에요. ${mk.gan.map(w => `${w}간 — ${QM_WHO[w]}`).join(' · ')}` : '',
-          aiFor?.('p5', `중5궁: 지반 ${x.earth}${mk?.gan.length ? ` · ${mk.gan.join('')}간` : ''}`)].filter(Boolean), ['qm-gigung', 'qm-gugung', 'qm-guksu'])));
+          aiFor?.('p5', `중5궁: 지반 ${x.earth}${mk?.gan.length ? ` · ${mk.gan.join('')}간` : ''}${hc ? ` · ${hk.guk} · ${hc.focus}` : ''}`)].filter(Boolean), ['qm-gigung', 'qm-gugung', 'qm-guksu', hc ? 'qm-hk-guk' : null].filter(Boolean))));
       continue;
     }
     const doorCls = GIL_DOOR.includes(x.door) ? 'gil' : HYUNG_DOOR.includes(x.door) ? 'hyung' : '';
@@ -229,15 +285,16 @@ function drawQimen(r, aiFor) {
       kong ? `시순 공망(${r.kong.join('')})이 든 궁이에요.` : '',
       mk?.gan.length ? `${mk.gan.join('·')} 천간이 지반에 앉은 궁이에요. ${mk.gan.map(w => `${w}간 — ${QM_WHO[w]}`).join(' · ')}` : '',
       mk?.ji.length ? `${mk.ji.join('·')}지가 속한 궁이에요.` : '',
+      ...(hc ? hc.hint : []),
       aiFor?.(`p${p}`, `${QM_GUNG[p]}: 천반 ${x.heaven} / 지반 ${x.earth} / ${x.star} / ${x.door} / ${x.god}` +
-        [p === r.zhifuTo && '직부', p === r.zhishiTo && '직사', kong && '공망', mk?.gan.length && `${mk.gan.join('')}간`, mk?.ji.length && `${mk.ji.join('')}지`].filter(Boolean).map(t => ` / ${t}`).join('')),
+        [p === r.zhifuTo && '직부', p === r.zhishiTo && '직사', kong && '공망', mk?.gan.length && `${mk.gan.join('')}간`, mk?.ji.length && `${mk.ji.join('')}지`, hc?.focus].filter(Boolean).map(t => ` / ${t}`).join('')),
     ].filter(Boolean), [STAR_ID[starName], DOOR_ID[x.door], GOD_ID[x.god], 'qm-cheonban', kong ? 'qm-gongmang' : null].filter(Boolean));
-    grid.append(box('qm-cell', [gname, marks,
-      h('div', '', tip('god', x.god, `팔신 ${x.god}`, [short(GOD_ID[x.god]), ...(TERMS.get(GOD_ID[x.god])?.body || []).slice(0, 1)], [GOD_ID[x.god], 'qm-palsin'])),
-      h('div', '', tip('star', x.star, `구성 ${x.star}`, [short(STAR_ID[starName]), x.star.includes('·') ? '천금성은 중5궁의 별이라 곤2궁의 천예와 함께 움직여요(기궁).' : ''], [STAR_ID[starName], 'qm-guseong', x.star.includes('·') ? 'qm-gigung' : null])),
-      h('div', 'stems glyph', tip(`oh-cell ${ohCls(x.heaven[0])}`, x.heaven, `천반 ${x.heaven}`, [...[...x.heaven].map(charInfo), `지반 ${x.earth} 위에 얹힌 천반이에요. 천반은 직부를 따라 시마다 돌아요.`,
+    grid.append(box(`qm-cell${hc ? ' hk' : ''}${now ? ' now' : ''}`, [gname, marks, ...(hc ? [hc.top, hc.lab, hc.rowH, hc.rowE, hc.rowY] : []),
+      !yeon ? '' : h('div', '', tip('god', x.god, `팔신 ${x.god}`, [short(GOD_ID[x.god]), ...(TERMS.get(GOD_ID[x.god])?.body || []).slice(0, 1)], [GOD_ID[x.god], 'qm-palsin'])),
+      !yeon ? '' : h('div', '', tip('star', x.star, `구성 ${x.star}`, [short(STAR_ID[starName]), x.star.includes('·') ? '천금성은 중5궁의 별이라 곤2궁의 천예와 함께 움직여요(기궁).' : ''], [STAR_ID[starName], 'qm-guseong', x.star.includes('·') ? 'qm-gigung' : null])),
+      !yeon ? '' : h('div', 'stems glyph', tip(`oh-cell ${ohCls(x.heaven[0])}`, x.heaven, `천반 ${x.heaven}`, [...[...x.heaven].map(charInfo), `지반 ${x.earth} 위에 얹힌 천반이에요. 천반은 직부를 따라 시마다 돌아요.`,
         x.heaven.length > 1 ? `뒤 글자 ${x.heaven[1]}는 중5궁 지반 천간이 곤2궁에 기궁해 함께 온 거예요.` : '', short('qm-cheonban')], ['qm-cheonban', 'qm-jeonban', x.heaven.length > 1 ? 'qm-gigung' : null]), ' ', earth),
-      h('div', '', tip(`door ${doorCls}`, x.door, `팔문 ${x.door}`, [short(DOOR_ID[x.door]), ...(TERMS.get(DOOR_ID[x.door])?.body || []).slice(0, 1)], [DOOR_ID[x.door], 'qm-palmun', 'qm-gilmun']))], palaceHint));
+      !yeon ? '' : h('div', '', tip(`door ${doorCls}`, x.door, `팔문 ${x.door}`, [short(DOOR_ID[x.door]), ...(TERMS.get(DOOR_ID[x.door])?.body || []).slice(0, 1)], [DOOR_ID[x.door], 'qm-palmun', 'qm-gilmun'])), hc ? hc.ages : ''], palaceHint));
   }
   const meta = h('div', 'board-meta',
     r.term ? h('span', '', h('b', '', `${r.zr?.leap ? '윤' : ''}${r.term} ${r.yuan}`), ` (부두 ${r.futou})`) : null,
@@ -248,7 +305,9 @@ function drawQimen(r, aiFor) {
     h('span', '', `순수 ${r.xun}${r.fuYi} → 직부 ${r.zhifu}, 직사 ${r.zhishi}`),
     h('span', '', '공망 ', h('b', 'kong', r.kong.join(''))),
     r.pillars ? h('span', '', `${r.pillars.year}년 ${r.pillars.month}월 ${r.pillars.day}일`) : null);
-  return h('div', 'board', meta, grid, h('p', 'hint', '칸마다 위에서부터 팔신 · 구성 · 천반간(큰 글자)과 지반간 · 팔문. 위쪽이 남쪽이에요. 글자·표시를 하나씩 누르면 그것만, 궁 이름이나 빈 곳을 누르면 그 궁을 통째로 보여 줘요.',
+  return h('div', 'board', meta, grid, h('p', 'hint', hv && hv.layer !== 'yeon'
+    ? '홍국: 위에서부터 연도(또는 달)·형충파해, 천반수·육친·대운, 지반수·육친·대운, 유년·12운성' + (hv.layer === 'both' ? ', 그 아래 연국(팔신·구성·천반간과 지반간·팔문)' : '') + ', 맨 아래 행년 나이. ' : '칸마다 위에서부터 팔신 · 구성 · 천반간(큰 글자)과 지반간 · 팔문. ',
+    '위쪽이 남쪽이에요. 글자·표시를 하나씩 누르면 그것만, 궁 이름이나 빈 곳을 누르면 그 궁을 통째로 보여 줘요.',
     r.marks ? ' 진한 표시(예: 시일간)는 년·월·일·시 천간이 지반에 있는 궁(甲은 순수 의), 연한 표시(예: 년지)는 그 지지가 속한 궁이에요.' : ''));
 }
 

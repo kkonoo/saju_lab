@@ -183,26 +183,66 @@ function readQimen(view) {
     askForm(i, !!askText(i)));
   draw();
 }
-// 명국: 태어난 시각으로 포국 + 사주 네 기둥과 년·월·일·시 궁 표시
+// 명국: 태어난 시각으로 포국 + 사주 네 기둥과 년·월·일·시 궁 표시. 원명국 / 年局 / 月局 / 日局 + 홍국
+const QM_CHARTS = [['won', '원명국'], ['year', '年局'], ['month', '月局'], ['day', '日局']];
+function luSolar(y, m, d) { // 음력 → 양력, 그 달에 30일이 없으면 29일
+  const r = lunarToSolar(y, m, d);
+  return r.date || lunarToSolar(y, m, 29).date;
+}
 function qimenBirth(top, out) {
   const st = READ.qimenBirth ||= { input: { date: '', time: '', male: true } };
   const i = st.input;
   const bd = birthDate(i), time = inp('time', i.time);
   const sex = seg([[true, '남'], [false, '여']], i.male, v => { i.male = v; });
+  const today = nowInput().date, tl = solarToLunar(today) || { y: +today.slice(0, 4), m: 1 };
+  // 지금 보는 판의 날짜: 年局 = 그해 음력 생월·생일·생시, 月局 = 그해 그달 + 생일·생시, 日局 = 그날 + 생시
+  function chartDate() {
+    const bl = (i.cal === 'lunar' && i.lunar) || solarToLunar(i.date);
+    const k = st.chart || 'won';
+    if (k === 'won' || !bl) return { k: 'won', date: i.date, label: '원명국' };
+    if (k === 'year') { const y = st.cy ?? tl.y; return { k, date: luSolar(y, bl.m, bl.d), label: `年局 ${y}`, slot: `y${y}`, y }; }
+    if (k === 'month') { const y = st.cy ?? tl.y, m = st.cm ?? tl.m; return { k, date: luSolar(y, m, bl.d), label: `月局 ${y}년 음력 ${m}월`, slot: `m${y}-${m}`, y, m }; }
+    const date = st.cd ?? today;
+    return { k, date, label: `日局 ${date.replaceAll('-', '.')}`, slot: `d${date}` };
+  }
+  const move = (fn) => { fn(); st.gen = (st.gen || 0) + 1; st.aiBusy = false; st.aiErr = ''; draw(); };
+  function chartBar(cd) {
+    const ctl = cd.k === 'year' ? [button('◀', () => move(() => { st.cy = cd.y - 1; }), 'btn'), h('b', '', `${cd.y} ${gz60(cd.y - 1984)}`), button('▶', () => move(() => { st.cy = cd.y + 1; }), 'btn')]
+      : cd.k === 'month' ? [button('◀', () => move(() => { [st.cy, st.cm] = cd.m === 1 ? [cd.y - 1, 12] : [cd.y, cd.m - 1]; }), 'btn'), h('b', '', `${cd.y}년 음력 ${cd.m}월`), button('▶', () => move(() => { [st.cy, st.cm] = cd.m === 12 ? [cd.y + 1, 1] : [cd.y, cd.m + 1]; }), 'btn')]
+      : cd.k === 'day' ? [Object.assign(inp('date', cd.date), { onchange: e => e.target.value && move(() => { st.cd = e.target.value; }) })] : [];
+    return h('div', 'qm-bar no-print',
+      seg(QM_CHARTS, cd.k, v => move(() => { st.chart = v; })), h('span', 'row', ...ctl),
+      seg([['both', '연국+홍국'], ['yeon', '연국'], ['hong', '홍국']], prefs.qmLayer || 'both', v => { prefs.qmLayer = v; savePrefs(); draw(); }));
+  }
   function draw() {
     if (st.err) return out.replaceChildren(h('p', 'empty', `⚠️ ${st.err}`));
     if (!i.date || !i.time) return out.replaceChildren(h('p', 'empty', '생년월일(양력·음력)과 태어난 시각을 넣고 명국 보기를 눌러요. 기문 명국은 시까지 있어야 해요.'));
-    const r = qimenAt(...parseDT(i), qmOpt());
+    const cd = chartDate();
+    st.slot = cd.slot || '';
+    const r = qimenAt(...parseDT({ date: cd.date, time: i.time }), qmOpt());
+    const birth = cd.k === 'won' ? r.pillars : qimenAt(...parseDT(i), qmOpt()).pillars;
+    const hk = honggukCalc(r.pillars, i.male, birth.sajuYear);
+    const thisYear = +today.slice(0, 4);
+    const hv = { hk, layer: prefs.qmLayer || 'both', thisYear, ages: cd.k === 'won', daeun: cd.k === 'won' }; // 대운·행년 나이는 원명국에만
+    if (cd.k === 'won') { hv.years = {}; for (let y = thisYear; y < thisYear + 9; y++) hv.years[hkHaengnyeon(y, i.male)] = y; }
+    if (cd.k === 'year') { // 행년 궁(중5면 곤2)과, 그 궁에서 1월을 시작해 행년 방향으로 한 궁씩 옮긴 달(추정)
+      const hp = hkHaengnyeon(cd.y, i.male);
+      Object.assign(hv, { haeng: hp === 5 ? 2 : hp, haengFrom5: hp === 5, haengYear: cd.y, months: {}, nowMonth: cd.y === tl.y ? tl.m : 0 });
+      for (let m = 1; m <= 12; m++) (hv.months[mod(hp - 1 + (i.male ? -(m - 1) : m - 1), 9) + 1] ||= []).push(m);
+    }
+    Object.assign(r, { hk, hv, chartLabel: cd.label, chartDate: cd.k === 'won' ? '' : `양력 ${cd.date.replaceAll('-', '.')} (음력 ${(() => { const l = solarToLunar(cd.date); return l ? `${l.y}.${l.leap ? '윤' : ''}${pad2(l.m)}.${pad2(l.d)}` : '?'; })()}) ${i.time}` });
     const p = r.pillars;
     out.replaceChildren(savedNote(st), h('div', 'panel',
-      h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.time}`), h('span', 'grow'),
+      h('div', 'panel-head', h('h3', '', `${cd.k === 'won' ? '명국' : cd.label} · ${i.male ? '건명(남)' : '곤명(여)'} · ${cd.k === 'won' ? `${birthText(i)} ${i.time}` : r.chartDate}`), h('span', 'grow'),
         aiButton('qimenBirth', st, r), button('💾 저장', () => saveBoard(st, 'qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
+      cd.k === 'won' ? '' : h('p', 'hint', `생일: ${birthText(i)} ${i.time} · ${{ year: '年局(身數局) — 그해의 음력 생월·생일·생시로 세운 판', month: '月局 — 그해 그달 + 음력 생일·생시로 세운 판', day: '日局 — 그날 + 생시로 세운 판' }[cd.k]}`),
       h('p', '', h('b', 'glyph', [p.year, p.month, p.day, p.hour].flatMap((gz, k) => { const t = [...gz].map(c => h('span', `oh-cell ${ohCls(c)}`, c)); return k === 2 ? [button(t, () => iljuHint(gz), 'link glyph'), ' '] : [...t, ' ']; })), h('span', 'muted', '(년 월 일 시 · 일주를 누르면 풀이)'), ' ',
         button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false, cal: i.cal, lunar: i.lunar } }; prefs.mrMode = 'one'; savePrefs(); go('myeongri', 'read'); }, 'link')),
       h('p', 'hint', corrNote(p)),
-      drawQimen(r, (part, focus) => aiPart('qimenBirth', st, r, part, focus))),
+      chartBar(cd),
+      drawQimen(r, (part, focus) => aiPart('qimenBirth', st, r, `${st.slot}${part}`, focus), hv)),
       ...aiBox('qimenBirth', st, r),
-      h('p', 'hint', '💡 연국기문 명반이에요. 태어난 시각의 시가 포국에 년·월·일·시가 놓인 궁을 표시해요. 홍국기문 명반(홍국수·세·행년·대운)은 아직 없어요.'));
+      h('p', 'hint', '💡 연국기문 명반에 홍국(홍국수·世·육친·유년·12운성·대운·행년)을 겹쳤어요. 홍국 규칙은 참고 앱 판과 맞춘 것이고, 남자 대운·행년 방향과 年局의 달 배치는 아직 추정이에요. 홍국 팔문·태을구성·신살은 아직 없어요.'));
   }
   top.append(
     h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex)),
@@ -305,7 +345,7 @@ const askName = i => ((i.question || '').trim() || askText(i)).slice(0, 60); // 
 // ---------- 🤖 Claude로 읽기 ----------
 // ⚙️에 넣은 API 키로 브라우저에서 바로 부름(서버 없음). 키는 이 브라우저 설정(localStorage)에만 있음
 // 판이 바뀌면(새로 뽑기·날짜 바꾸기) 지난 읽기는 지우고, 받는 중이던 읽기는 버림
-function fresh(st) { st.gen = (st.gen || 0) + 1; delete st.input.ai; delete st.input.aiParts; st.aiBusy = false; st.aiErr = ''; st.recName = null; st.recId = null; }
+function fresh(st) { st.gen = (st.gen || 0) + 1; delete st.input.ai; delete st.input.aiParts; delete st.input.aiCharts; st.aiBusy = false; st.aiErr = ''; st.recName = null; st.recId = null; }
 
 const AI_RULES = `
 - 앱이 계산해 준 판 값을 그대로 쓰고 다시 계산하지 말아요.
@@ -330,13 +370,20 @@ function myeongriText(i, r) {
     `[대운] ${r.forward ? '순행' : '역행'}, 대운수 ${r.daeunsu}: ${r.daeun.map(d => `${d.age}세 ${d.gz}(${d.ganSs}/${d.zhiSs}, ${d.unseong})`).join(' · ')}`,
     `[올해 세운] ${s.year} ${s.gz}(${s.ganSs}/${s.zhiSs}, ${s.unseong})`].join('\n');
 }
+function hongText(hk, r) {
+  const yr = q => r.hv?.years?.[q] ? ` · ${r.hv.years[q]}년` : '';
+  return ['[홍국] 천반수 / 육친 / 대운 · 지반수 / 육친 / 대운 · 유년 · 12운성 · 형충파해',
+    `중궁 ${hk.guk}: 천반 ${hk.ch}(${hk.palaces[5].relH}) · 지반 ${hk.ce}(${hk.palaces[5].relE}) · 世 ${QM_GUNG[hk.se]}(지반수 ${hk.seNum}) · 일공 ${hk.kongDay.join('')}`,
+    ...[1, 2, 3, 4, 6, 7, 8, 9, 5].map(q => { const x = hk.palaces[q]; return `${QM_GUNG[q]}: 천${x.heaven}/${x.relH}/${x.daeun.heaven.join('~')}세 · 지${x.earth}/${x.relE}/${x.daeun.earth.join('~')}세${x.yunyeon ? ` · ${x.yunyeon}` : ''}${x.unseong.length ? ` · ${x.unseong.map(u => u.z + u.u).join(' ')}` : ''}${x.label ? ` · ${x.label}` : ''}${yr(q)}`; }),
+    `행년: 올해 ${new Date().getFullYear()}년은 ${QM_GUNG[hkHaengnyeon(new Date().getFullYear(), hk.male)]}`].filter(Boolean).join('\n');
+}
 function qimenText(r) {
   const m = r.marks, p = r.pillars;
   return [`사주 ${p.year} ${p.month} ${p.day} ${p.hour} (년 월 일 시)`,
     `${r.term} ${r.yuan}(부두 ${r.futou}) · ${r.dun} ${r.ju}국 · 시 ${r.shi} · 순수 ${r.xun}(부의 ${r.fuYi}) · 직부 ${r.zhifu} → ${QM_GUNG[r.zhifuTo]} · 직사 ${r.zhishi} → ${QM_GUNG[r.zhishiTo]} · 공망 ${r.kong.join('')}`,
     '[9궁] 천반 / 지반 / 구성 / 팔문 / 팔신 / 사주 표시(년·월·일·시의 천간이 지반에 든 궁, 지지가 속한 궁)',
     ...Object.entries(r.palaces).map(([n, c]) => `${QM_GUNG[n]}: ${c.heaven || '-'} / ${c.earth || '-'} / ${c.star || '-'} / ${c.door || '-'} / ${c.god || '-'}` +
-      (m[n] ? ` / ${[m[n].gan.length && `천간 ${m[n].gan.join('·')}`, m[n].ji.length && `지지 ${m[n].ji.join('·')}`].filter(Boolean).join(', ')}` : ''))].join('\n');
+      (m[n] ? ` / ${[m[n].gan.length && `천간 ${m[n].gan.join('·')}`, m[n].ji.length && `지지 ${m[n].ji.join('·')}`].filter(Boolean).join(', ')}` : '')), r.hk ? hongText(r.hk, r) : ''].filter(Boolean).join('\n');
 }
 function liurenText(i, r) {
   const p = r.pillars;
@@ -378,7 +425,7 @@ const AI = { // 과목별: 버튼 이름, 읽는 법, 판 → 글, 질문 칸을
     sys: `연국기문을 공부하는 사람에게 이 명국(태어난 시각의 시가 포국)을 풀어 주세요.
 - 일간이 든 궁(나)을 중심으로 그 궁의 팔문·구성·팔신·천반·지반을 짚고, 년·월·시 간지가 든 궁과의 관계, 직부·직사, 공망을 봐요.
 - 끝에 성향·강점·조심할 점을 정리해요.`,
-    text: (i, r) => `${i.male ? '남(건명)' : '여(곤명)'} · ${birthText(i)} ${i.time}\n${qimenText(r)}` },
+    text: (i, r) => `${r.chartLabel && r.chartDate ? `[${r.chartLabel}] ${r.chartDate} — 이 사람의 그 시기 운을 보는 판이에요. 홍국 世·육친도 이 판 기준이에요.\n` : ''}${i.male ? '남(건명)' : '여(곤명)'} · ${birthText(i)} ${i.time}\n${qimenText(r)}` },
   compare: { label: '비교해서 읽기',
     sys: `명리·기문을 공부하는 사람이 저장한 판 둘(A, B)을 비교하려고 해요.
 - 같은 사람(생년월일시·성별이 같음)의 명리 원국과 기문 명국이면: 같은 사주를 두 체계가 어떻게 다르게 보는지 개념마다 짚어요(일간과 나의 자리, 오행·십신 대 궁의 팔문·구성·팔신, 공망을 일주 순과 시주 순으로 잡는 차이, 대운 등). 두 체계가 같은 말을 하는 곳과 엇갈리는 곳을 정리해요.
@@ -392,17 +439,18 @@ const AI = { // 과목별: 버튼 이름, 읽는 법, 판 → 글, 질문 칸을
     } },
 };
 // 판 머리의 🤖 버튼(읽기 전에만)과 판 아래 결과 칸
+const aiGet = st => (st.slot ? st.input.aiCharts?.[st.slot] : st.input.ai);
 function aiButton(key, st, board) {
-  return !st.aiBusy && !st.input.ai ? button(`🤖 ${AI[key].label}`, () => askClaude(key, st, board), 'btn no-print') : null;
+  return !st.aiBusy && !aiGet(st) ? button(`🤖 ${AI[key].label}`, () => askClaude(key, st, board), 'btn no-print') : null;
 }
 function aiBox(key, st, board) {
   const i = st.input;
   return [
     st.aiErr ? h('p', 'hint', `⚠️ ${st.aiErr}`) : null,
-    st.aiBusy || i.ai ? h('div', 'panel',
+    st.aiBusy || aiGet(st) ? h('div', 'panel',
       h('div', 'panel-head', h('h3', '', st.aiBusy ? '🤖 Claude가 읽는 중…' : `🤖 ${AI[key].label}`), h('span', 'grow'),
         st.aiBusy ? null : button('🔄 다시', () => askClaude(key, st, board), 'btn no-print')),
-      Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : i.ai), { id: 'aiText' })) : null,
+      Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : aiGet(st)), { id: 'aiText' })) : null,
   ].filter(Boolean); // replaceChildren에 null을 넘기면 "null" 글자가 찍힘
 }
 // Claude 한 번 부르기 (스트리밍): 글자가 올 때마다 onText(지금까지 글), live()가 거짓이 되면 그만둠
@@ -456,7 +504,7 @@ const needKey = () => { if (prefs.claudeKey) return false; toast('⚙️ 설정�
 function rememberAI(st) {
   const rec = st.recId && db.recs.find(r => r.id === st.recId && !r.deleted);
   if (!rec) return;
-  Object.assign(rec.input, { ai: st.input.ai, aiParts: st.input.aiParts });
+  Object.assign(rec.input, { ai: st.input.ai, aiParts: st.input.aiParts, aiCharts: st.input.aiCharts });
   rec.updatedAt = Date.now();
   persist();
 }
@@ -466,7 +514,7 @@ function saveBoard(st, kind, input, result, name) {
 }
 async function askClaude(key, st, board) {
   if (needKey()) return;
-  const conf = AI[key], i = st.input, gen = st.gen;
+  const conf = AI[key], i = st.input, gen = st.gen, slot = st.slot;
   const live = () => READ[key] === st && st.gen === gen; // 판이 바뀌거나 다른 판을 열면 그만둠
   const redraw = () => { if (route.sub === 'read') render(); };
   Object.assign(st, { aiBusy: true, aiText: '', aiErr: '' });
@@ -477,7 +525,7 @@ async function askClaude(key, st, board) {
     live, onText: t => { st.aiText = t; const el = $('aiText'); if (el) el.textContent = t; },
   });
   if (r.aborted || !live()) return;
-  if (r.err) st.aiErr = r.err; else { i.ai = r.text; rememberAI(st); }
+  if (r.err) st.aiErr = r.err; else { if (slot) (i.aiCharts ||= {})[slot] = r.text; else i.ai = r.text; rememberAI(st); }
   st.aiBusy = false;
   redraw();
 }
