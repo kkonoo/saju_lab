@@ -239,16 +239,24 @@ $('saveDel').addEventListener('click', () => {
   toast('지웠어요');
   drawSaved();
 });
-let savedKind = '';
+let savedKind = '', savedPage = 0;
 function drawSaved() {
-  $('savedFilter').replaceChildren(...seg([['', '전체'], ...Object.entries(KIND_NAME)], savedKind, v => { savedKind = v; drawSaved(); }).children);
-  const list = db.recs.filter(r => !r.deleted && (!savedKind || r.kind === savedKind)).sort((a, b) => b.updatedAt - a.updatedAt);
+  $('savedFilter').replaceChildren(...seg([['', '전체'], ...Object.entries(KIND_NAME)], savedKind, v => { savedKind = v; savedPage = 0; drawSaved(); }).children);
+  const all = db.recs.filter(r => !r.deleted && (!savedKind || r.kind === savedKind)).sort((a, b) => b.updatedAt - a.updatedAt);
+  const per = prefs.savedPer || 10, pages = Math.max(1, Math.ceil(all.length / per));
+  savedPage = Math.min(savedPage, pages - 1);
+  const list = all.slice(savedPage * per, (savedPage + 1) * per);
+  const turn = d => { savedPage += d; drawSaved(); $('savedList').scrollIntoView({ block: 'start' }); };
+  const pager = all.length > 10 ? h('div', 'row pager',
+    button('‹ 이전', () => turn(-1), 'btn'), h('span', 'muted small', `${savedPage + 1} / ${pages} · 모두 ${all.length}개`), button('다음 ›', () => turn(1), 'btn'), h('span', 'grow'),
+    seg([[10, '10개'], [30, '30개'], [50, '50개']], per, v => { prefs.savedPer = v; savePrefs(); savedPage = 0; drawSaved(); })) : null;
+  if (pager) { pager.children[0].disabled = savedPage === 0; pager.children[2].disabled = savedPage >= pages - 1; }
   $('savedList').replaceChildren(...(list.length ? list.map(r => h('div', 'saved-item',
     h('span', '', KIND_NAME[r.kind].split(' ')[0]),
     h('div', 'grow', h('div', 't', r.name), h('div', 's', [savedSummary(r), r.memo].filter(Boolean).join(' · '))),
     button('✎', () => editSaved(r), 'icon-btn small'),
     button('열기', () => { closeDialogs(); openSavedRec(r); }, 'btn'),
-  )) : [h('p', 'empty', '아직 저장한 판이 없어요. 판을 뽑고 💾 저장을 눌러요.')]));
+  )) : [h('p', 'empty', '아직 저장한 판이 없어요. 판을 뽑고 💾 저장을 눌러요.')]), ...(pager ? [pager] : []));
 }
 function savedSummary(r) {
   const i = r.input || {};

@@ -54,6 +54,16 @@ function birthDate(i) {
     },
   };
 }
+// 나이: 세는 나이 + 만 나이. 명리는 양력 해로 세고(대운 나이와 같게), 기문 홍국은 입춘 기준 해로 셈(참고 앱과 같게)
+function manAge(date, today) {
+  const [y, m, d] = date.split('-').map(Number), [ty, tm, td] = today.split('-').map(Number);
+  return ty - y - (tm < m || (tm === m && td < d) ? 1 : 0);
+}
+function ageText(i, sajuYear) {
+  const t = nowInput().date;
+  const se = sajuYear ? fourPillars(...parseDT({ date: t, time: '12:00' })).sajuYear - sajuYear + 1 : +t.slice(0, 4) - +i.date.slice(0, 4) + 1;
+  return `${se}세 · 만 ${manAge(i.date, t)}세`;
+}
 const birthText = i => {
   const s = `양력 ${i.date.replaceAll('-', '.')}`, L = i.lunar;
   return i.cal === 'lunar' && L ? `음력 ${L.y}.${L.leap ? '윤' : ''}${pad2(L.m)}.${pad2(L.d)} (${s})` : s;
@@ -98,7 +108,7 @@ function readMyeongri(view) {
     out.replaceChildren(
       savedNote(st),
       h('div', 'panel',
-        h('div', 'panel-head', h('h3', '', `${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.unknownHour || !i.time ? '(시 모름)' : i.time}`), h('span', 'grow'),
+        h('div', 'panel-head', h('h3', '', `${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.unknownHour || !i.time ? '(시 모름)' : i.time} `, h('span', 'age-note', `(${ageText(i)})`)), h('span', 'grow'),
           aiButton('myeongri', st, r), button('💾 저장', () => saveBoard(st, 'myeongri', { ...i }, null, ''), 'btn no-print')),
         h('p', 'hint', `절입: ${r.info.jeol.name} ${fmtUtc(r.info.jeol.utcMin * 60000)} · 다음 ${r.info.nextJeol.name} ${fmtUtc(r.info.nextJeol.utcMin * 60000)}`),
         i.unknownHour || !i.time ? null : h('p', 'hint', corrNote(r.info)),
@@ -214,6 +224,15 @@ function qimenBirth(top, out) {
       seg(QM_CHARTS, cd.k, v => move(() => { st.chart = v; })), h('span', 'row', ...ctl),
       seg([['both', '연국+홍국'], ['yeon', '연국'], ['hong', '홍국']], prefs.qmLayer || 'both', v => { prefs.qmLayer = v; savePrefs(); draw(); }));
   }
+  function chipBar(cd) { // 기본 말고 더 볼 것 (켜 둔 것은 이 브라우저에 기억)
+    const layer = prefs.qmLayer || 'both', show = prefs.qmShow ||= {};
+    const list = [...(layer !== 'hong' ? QM_CHIPS.yeon : []), ...(layer !== 'yeon' ? QM_CHIPS.hong.filter(([k]) => cd.k === 'won' || (k !== 'daeun' && k !== 'soun')) : [])];
+    return h('div', 'chips qm-chips no-print', h('span', 'muted small', '더 보기'), ...list.map(([k, label]) => {
+      const b = button(label, () => { show[k] = !show[k]; savePrefs(); draw(); }, 'chip');
+      b.classList.toggle('on', !!show[k]);
+      return b;
+    }));
+  }
   function draw() {
     if (st.err) return out.replaceChildren(h('p', 'empty', `⚠️ ${st.err}`));
     if (!i.date || !i.time) return out.replaceChildren(h('p', 'empty', '생년월일(양력·음력)과 태어난 시각을 넣고 명국 보기를 눌러요. 기문 명국은 시까지 있어야 해요.'));
@@ -221,28 +240,28 @@ function qimenBirth(top, out) {
     st.slot = cd.slot || '';
     const r = qimenAt(...parseDT({ date: cd.date, time: i.time }), qmOpt());
     const birth = cd.k === 'won' ? r.pillars : qimenAt(...parseDT(i), qmOpt()).pillars;
-    const hk = honggukCalc(r.pillars, i.male, birth.sajuYear);
-    const thisYear = +today.slice(0, 4);
-    const hv = { hk, layer: prefs.qmLayer || 'both', thisYear, ages: cd.k === 'won', daeun: cd.k === 'won' }; // 대운·행년 나이는 원명국에만
-    if (cd.k === 'won') { hv.years = {}; for (let y = thisYear; y < thisYear + 9; y++) hv.years[hkHaengnyeon(y, i.male)] = y; }
-    if (cd.k === 'year') { // 행년 궁(중5면 곤2)과, 그 궁에서 1월을 시작해 행년 방향으로 한 궁씩 옮긴 달(추정)
-      const hp = hkHaengnyeon(cd.y, i.male);
+    const hk = honggukCalc(r.pillars, i.male, birth.sajuYear, r.dun === '양둔');
+    const thisYear = +today.slice(0, 4), won = cd.k === 'won';
+    const hv = { hk, layer: prefs.qmLayer || 'both', show: prefs.qmShow || {}, thisYear, won, P: r.pillars }; // 대운·소운은 원명국에만
+    if (won) { hv.years = {}; for (let y = thisYear; y < thisYear + 9; y++) hv.years[hkSoun(y, i.male)] = y; }
+    if (cd.k === 'year') { // 행년 궁(중5면 곤2)과 달: 달은 월지가 속한 궁에 고정(1월 寅 간8, 2월 卯 진3 …)
+      const hp = hkHaengnyeon(cd.y, i.male, birth.sajuYear);
       Object.assign(hv, { haeng: hp === 5 ? 2 : hp, haengFrom5: hp === 5, haengYear: cd.y, months: {}, nowMonth: cd.y === tl.y ? tl.m : 0 });
-      for (let m = 1; m <= 12; m++) (hv.months[mod(hp - 1 + (i.male ? -(m - 1) : m - 1), 9) + 1] ||= []).push(m);
+      for (let m = 1; m <= 12; m++) (hv.months[+Object.keys(QM_GUNG_JI).find(k => QM_GUNG_JI[k].includes(JI[(m + 1) % 12]))] ||= []).push(m);
     }
     Object.assign(r, { hk, hv, chartLabel: cd.label, chartDate: cd.k === 'won' ? '' : `양력 ${cd.date.replaceAll('-', '.')} (음력 ${(() => { const l = solarToLunar(cd.date); return l ? `${l.y}.${l.leap ? '윤' : ''}${pad2(l.m)}.${pad2(l.d)}` : '?'; })()}) ${i.time}` });
     const p = r.pillars;
     out.replaceChildren(savedNote(st), h('div', 'panel',
-      h('div', 'panel-head', h('h3', '', `${cd.k === 'won' ? '명국' : cd.label} · ${i.male ? '건명(남)' : '곤명(여)'} · ${cd.k === 'won' ? `${birthText(i)} ${i.time}` : r.chartDate}`), h('span', 'grow'),
+      h('div', 'panel-head', h('h3', '', `${won ? '명국' : cd.label} · ${i.male ? '건명(남)' : '곤명(여)'} · ${won ? `${birthText(i)} ${i.time} ` : r.chartDate}`, won ? h('span', 'age-note', `(${ageText(i, birth.sajuYear)})`) : ''), h('span', 'grow'),
         aiButton('qimenBirth', st, r), button('💾 저장', () => saveBoard(st, 'qimen', { ...i, mode: 'birth' }, null, ''), 'btn no-print')),
-      cd.k === 'won' ? '' : h('p', 'hint', `생일: ${birthText(i)} ${i.time} · ${{ year: '年局(身數局) — 그해의 음력 생월·생일·생시로 세운 판', month: '月局 — 그해 그달 + 음력 생일·생시로 세운 판', day: '日局 — 그날 + 생시로 세운 판' }[cd.k]}`),
+      won ? '' : h('p', 'hint', `생일: ${birthText(i)} ${i.time} (${ageText(i, birth.sajuYear)}) · ${{ year: '年局(身數局) — 그해의 음력 생월·생일·생시로 세운 판', month: '月局 — 그해 그달 + 음력 생일·생시로 세운 판', day: '日局 — 그날 + 생시로 세운 판' }[cd.k]}`),
       h('p', '', h('b', 'glyph', [p.year, p.month, p.day, p.hour].flatMap((gz, k) => { const t = [...gz].map(c => h('span', `oh-cell ${ohCls(c)}`, c)); return k === 2 ? [button(t, () => iljuHint(gz), 'link glyph'), ' '] : [...t, ' ']; })), h('span', 'muted', '(년 월 일 시 · 일주를 누르면 풀이)'), ' ',
         button('🀄 명리 원국으로', () => { READ.myeongri = { input: { date: i.date, time: i.time, male: i.male, unknownHour: false, cal: i.cal, lunar: i.lunar } }; prefs.mrMode = 'one'; savePrefs(); go('myeongri', 'read'); }, 'link')),
       h('p', 'hint', corrNote(p)),
-      chartBar(cd),
+      chartBar(cd), chipBar(cd),
       drawQimen(r, (part, focus) => aiPart('qimenBirth', st, r, `${st.slot}${part}`, focus), hv)),
       ...aiBox('qimenBirth', st, r),
-      h('p', 'hint', '💡 연국기문 명반에 홍국(홍국수·世·육친·유년·12운성·대운·행년)을 겹쳤어요. 홍국 규칙은 참고 앱 판과 맞춘 것이고, 남자 대운·행년 방향과 年局의 달 배치는 아직 추정이에요. 홍국 팔문·태을구성·신살은 아직 없어요.'));
+      h('p', 'hint', '💡 연국기문 명반에 홍국을 겹쳤어요. 홍국 규칙은 참고 앱 판(남녀 원명국·年局·日局)과 맞췄어요. 홍국 팔문·태을구성·강약·기의백격은 아직 없어요.'));
   }
   top.append(
     h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex)),
@@ -351,7 +370,8 @@ const AI_RULES = `
 - 앱이 계산해 준 판 값을 그대로 쓰고 다시 계산하지 말아요.
 - 공부하는 사람이 따라 읽을 수 있게, 결론만큼 읽는 과정(어느 칸의 무엇을 보고 그렇게 읽는지)을 보여 줘요.
 - 쉬운 해요체로 쓰고, 정해진 미래처럼 단정하지 말아요.
-- 마크다운 기호(#, *, -, 표)는 쓰지 말고 문단 사이는 빈 줄 하나로 나눠요.`;
+- 마크다운 기호(#, *, -, 표)는 쓰지 말고 문단 사이는 빈 줄 하나로 나눠요.
+- 용어는 처음 나올 때 한글(한자)로 써요. 예: 개문(開門), 천임(天任), 부(父)·인수.`;
 const ASK_RULE = `
 - 질문은 [질문] 칸에 넣은 것만 와요. 세부 질문이 없으면 종류·날짜·기간·상대·상황으로 무엇을 묻는지 짐작해 읽고, 아무것도 없으면 '요즘의 나'로 읽어요.`;
 // 질문 칸 → 글
@@ -371,11 +391,16 @@ function myeongriText(i, r) {
     `[올해 세운] ${s.year} ${s.gz}(${s.ganSs}/${s.zhiSs}, ${s.unseong})`].join('\n');
 }
 function hongText(hk, r) {
-  const yr = q => r.hv?.years?.[q] ? ` · ${r.hv.years[q]}년` : '';
-  return ['[홍국] 천반수 / 육친 / 대운 · 지반수 / 육친 / 대운 · 유년 · 12운성 · 형충파해',
-    `중궁 ${hk.guk}: 천반 ${hk.ch}(${hk.palaces[5].relH}) · 지반 ${hk.ce}(${hk.palaces[5].relE}) · 世 ${QM_GUNG[hk.se]}(지반수 ${hk.seNum}) · 일공 ${hk.kongDay.join('')}`,
-    ...[1, 2, 3, 4, 6, 7, 8, 9, 5].map(q => { const x = hk.palaces[q]; return `${QM_GUNG[q]}: 천${x.heaven}/${x.relH}/${x.daeun.heaven.join('~')}세 · 지${x.earth}/${x.relE}/${x.daeun.earth.join('~')}세${x.yunyeon ? ` · ${x.yunyeon}` : ''}${x.unseong.length ? ` · ${x.unseong.map(u => u.z + u.u).join(' ')}` : ''}${x.label ? ` · ${x.label}` : ''}${yr(q)}`; }),
-    `행년: 올해 ${new Date().getFullYear()}년은 ${QM_GUNG[hkHaengnyeon(new Date().getFullYear(), hk.male)]}`].filter(Boolean).join('\n');
+  const yr = q => r.hv?.years?.[q] ? ` · ${r.hv.years[q]}년 소운` : '', won = r.hv?.won;
+  return [`[홍국] 천반수 / 육친${won ? ' / 대운' : ''} · 지반수 / 육친${won ? ' / 대운' : ''} · 유년 · 12운성 · 형충 · 신살`,
+    '육친 다른 이름: 父=부모·인수(인성), 兄=형제·비겁, 孫=자손·식상, 財=처재·재성, 官=정관, 鬼=편관·칠살',
+    `중궁 ${HK_GUK_KO[hk.guk]}(${hk.guk}): 천반 ${hk.ch}(${hk.palaces[5].relH}) · 지반 ${hk.ce}(${hk.palaces[5].relE}) · 世 ${QM_GUNG[hk.se]}(지반수 ${hk.seNum}) · 일공 ${hk.kongDay.join('')}`,
+    ...[1, 2, 3, 4, 6, 7, 8, 9, 5].map(q => {
+      const x = hk.palaces[q];
+      return `${QM_GUNG[q]}: 천${x.heaven}/${x.relH}${won ? `/${x.daeun.heaven.join('~')}세` : ''} · 지${x.earth}/${x.relE}${won ? `/${x.daeun.earth.join('~')}세` : ''}${x.yunyeon ? ` · ${x.yunyeon}` : ''}${x.unseong.length ? ` · ${x.unseong.map(u => u.z + u.u).join(' ')}` : ''}${x.label ? ` · ${x.label}` : ''}${x.sinsal.length ? ` · 신살 ${x.sinsal.map(t => (t.fu ? '伏' : '') + t.name).join(' ')}` : ''}${yr(q)}`;
+    }),
+    won ? `소운: 올해 ${new Date().getFullYear()}년은 ${QM_GUNG[hkSoun(new Date().getFullYear(), hk.male)]}` : '',
+    r.hv?.haeng ? `행년(${r.hv.haengYear}): ${QM_GUNG[r.hv.haeng]}` : ''].filter(Boolean).join('\n');
 }
 function qimenText(r) {
   const m = r.marks, p = r.pillars;
@@ -444,14 +469,29 @@ function aiButton(key, st, board) {
   return !st.aiBusy && !aiGet(st) ? button(`🤖 ${AI[key].label}`, () => askClaude(key, st, board), 'btn no-print') : null;
 }
 function aiBox(key, st, board) {
-  const i = st.input;
+  const text = aiGet(st);
+  const body = Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : text), { id: 'aiText' });
+  body.hidden = !st.aiBusy && !!st.aiFold;
+  const fold = button(st.aiFold ? '펼치기' : '접기', () => { st.aiFold = !st.aiFold; body.hidden = st.aiFold; fold.textContent = st.aiFold ? '펼치기' : '접기'; }, 'btn no-print');
   return [
     st.aiErr ? h('p', 'hint', `⚠️ ${st.aiErr}`) : null,
-    st.aiBusy || aiGet(st) ? h('div', 'panel',
+    st.aiBusy || text ? h('div', 'panel',
       h('div', 'panel-head', h('h3', '', st.aiBusy ? '🤖 Claude가 읽는 중…' : `🤖 ${AI[key].label}`), h('span', 'grow'),
-        st.aiBusy ? null : button('🔄 다시', () => askClaude(key, st, board), 'btn no-print')),
-      Object.assign(h('div', 'ai-text', st.aiBusy ? st.aiText : aiGet(st)), { id: 'aiText' })) : null,
+        st.aiBusy ? null : button('🔄 다시', () => askClaude(key, st, board), 'btn no-print'),
+        st.aiBusy ? null : button('🗑 지우기', () => clearAI(st), 'btn no-print'), st.aiBusy ? null : fold),
+      body) : null,
   ].filter(Boolean); // replaceChildren에 null을 넘기면 "null" 글자가 찍힘
+}
+// 🤖 읽은 글 지우기 (저장한 판이면 거기서도 지움)
+function clearAI(st, part) {
+  if (!confirm('이 AI 읽기를 지울까요?')) return false;
+  const i = st.input;
+  if (part) delete i.aiParts?.[part];
+  else if (st.slot) delete i.aiCharts?.[st.slot];
+  else delete i.ai;
+  rememberAI(st);
+  if (!part && route.sub === 'read') render();
+  return true;
 }
 // Claude 한 번 부르기 (스트리밍): 글자가 올 때마다 onText(지금까지 글), live()가 거짓이 되면 그만둠
 async function claudeStream({ sys, content, onText, live = () => true }) {
@@ -533,9 +573,12 @@ async function askClaude(key, st, board) {
 const PART_SUBJ = { qimenBirth: '기문 명국', qimen: '기문 시가 포국', liuren: '대육임 과전' };
 function aiPart(key, st, board, part, focus) {
   const conf = AI[key], i = st.input, el = h('div', 'ai-part');
-  const show = () => el.replaceChildren(...(i.aiParts?.[part]
-    ? [h('div', 'ai-text', i.aiParts[part]), button('🔄 다시', run, 'btn')]
-    : [button('🤖 이 칸 해석하기', run, 'btn')]));
+  const show = () => {
+    if (!i.aiParts?.[part]) return el.replaceChildren(button('🤖 이 칸 해석하기', run, 'btn'));
+    const text = h('div', 'ai-text', i.aiParts[part]);
+    const fold = button('접기', () => { text.hidden = !text.hidden; fold.textContent = text.hidden ? '펼치기' : '접기'; }, 'btn');
+    el.replaceChildren(h('div', 'row', h('b', '', '🤖 이 칸 읽기'), h('span', 'grow'), button('🔄 다시', run, 'btn'), button('🗑 지우기', () => clearAI(st, part) && show(), 'btn'), fold), text);
+  };
   async function run() {
     if (needKey()) return;
     const gen = st.gen, out = h('div', 'ai-text', '🤖 Claude가 읽는 중…');

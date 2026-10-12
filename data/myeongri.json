@@ -203,14 +203,15 @@
       "see": ["base-ganhap", "mr-wollyeong"]
     },
     {
-      "id": "mr-sipsin", "cat": "sipsin", "term": "십신", "hanja": "十神", "aka": "육친, 십성",
+      "id": "mr-sipsin", "cat": "sipsin", "term": "십신", "hanja": "十神", "aka": "육친, 십성, 인수",
       "short": "일간과 다른 글자의 생극·음양 관계에 붙인 열 가지 이름",
       "body": [
         "비겁(비견·겁재), 식상(식신·상관), 재성(편재·정재), 관성(편관·정관), 인성(편인·정인)의 다섯 무리, 열 개예요. 음양이 같으면 편, 다르면 정이 붙어요.",
+        "육임·기문 홍국의 육친으로 치면 비겁은 형제(兄), 식상은 자손(孫), 재성은 처재(財), 관성은 관귀(官·鬼 — 정관은 官, 편관은 鬼), 인성은 부모(父)예요. 인성, 특히 정인은 인수(印綬)라고도 불러요([[base-yukchin|육친 이름 대조]]).",
         "가족 관계(육친)나 성향, 사회적 역할과 연결해 읽기도 해요. 같은 십신이라도 일간 강약과 위치에 따라 쓰임이 달라져서 이름만으로 좋고 나쁨을 정하지 않아요."
       ],
       "example": "甲 일간: 甲 비견, 乙 겁재, 丙 식신, 丁 상관, 戊 편재, 己 정재, 庚 편관, 辛 정관, 壬 편인, 癸 정인.",
-      "see": ["mr-bigyeon", "mr-siksin", "mr-pyeonjae", "mr-pyeongwan", "mr-pyeonin", "base-sangsaeng", "base-sanggeuk"]
+      "see": ["mr-bigyeon", "mr-siksin", "mr-pyeonjae", "mr-pyeongwan", "mr-pyeonin", "base-sangsaeng", "base-sanggeuk", "base-yukchin"]
     },
     {
       "id": "mr-bigyeon", "cat": "sipsin", "term": "비견", "hanja": "比肩",
@@ -303,7 +304,7 @@
       "see": ["mr-jeongin", "mr-siksin", "mr-sipsin"]
     },
     {
-      "id": "mr-jeongin", "cat": "sipsin", "term": "정인", "hanja": "正印",
+      "id": "mr-jeongin", "cat": "sipsin", "term": "정인", "hanja": "正印", "aka": "인수(印綬)",
       "short": "일간을 생하고 음양이 다른 글자. 보호·학문·문서",
       "body": [
         "일간을 정답게 돕는 글자라 어머니, 공부, 자격, 문서와 연결해 읽어요. 신약한 원국에서 가장 먼저 찾는 도움이에요.",
