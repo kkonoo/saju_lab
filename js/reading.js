@@ -10,6 +10,7 @@ function shiftHours(i, hours) {
   const t = new Date(y, m - 1, d, hh + hours, mm);
   return { ...i, date: `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`, time: `${pad2(t.getHours())}:${pad2(t.getMinutes())}` };
 }
+const qmOpt = () => ({ ...timeOpt(), ju: prefs.qmJu, gods: prefs.qmGods }); // 기문 유파 설정(🔧 보정)
 function field(label, input) { return h('label', 'field', label, input); }
 function inp(type, value, attrs = {}) { return Object.assign(h('input'), { type, value: value ?? '', ...attrs }); }
 function corrNote(p) {
@@ -166,7 +167,7 @@ function readQimen(view) {
   date.addEventListener('change', change); time.addEventListener('change', change);
   const step = n => { Object.assign(i, shiftHours(i, n)); date.value = i.date; time.value = i.time; fresh(st); draw(); };
   function draw() {
-    const r = qimenAt(...parseDT(i), timeOpt());
+    const r = qimenAt(...parseDT(i), qmOpt());
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `${fmtDT(i)} · ${r.pillars.day}일 ${r.shi}시`), h('span', 'grow'),
         aiButton('qimen', st, r), button('💾 저장', () => saveBoard(st, 'qimen', { ...i, mode: 'now' }, null, askName(i)), 'btn no-print')),
@@ -191,7 +192,7 @@ function qimenBirth(top, out) {
   function draw() {
     if (st.err) return out.replaceChildren(h('p', 'empty', `⚠️ ${st.err}`));
     if (!i.date || !i.time) return out.replaceChildren(h('p', 'empty', '생년월일(양력·음력)과 태어난 시각을 넣고 명국 보기를 눌러요. 기문 명국은 시까지 있어야 해요.'));
-    const r = qimenAt(...parseDT(i), timeOpt());
+    const r = qimenAt(...parseDT(i), qmOpt());
     const p = r.pillars;
     out.replaceChildren(savedNote(st), h('div', 'panel',
       h('div', 'panel-head', h('h3', '', `명국 · ${i.male ? '건명(남)' : '곤명(여)'} · ${birthText(i)} ${i.time}`), h('span', 'grow'),
@@ -543,7 +544,7 @@ function readCompare(top, out) {
     return s;
   };
   function draw() {
-    const pair = [i.a, i.b].map(id => { const rec = recs.find(r => r.id === id); return { rec, r: isMr(rec) ? myeongriOf(rec.input) : qimenAt(...parseDT(rec.input), timeOpt()) }; });
+    const pair = [i.a, i.b].map(id => { const rec = recs.find(r => r.id === id); return { rec, r: isMr(rec) ? myeongriOf(rec.input) : qimenAt(...parseDT(rec.input), qmOpt()) }; });
     const rows = CMP_ROWS.map(([label, f]) => [label, ...pair.map(x => f(x.rec, x.r))]).filter(([, a, b]) => a !== '—' || b !== '—');
     out.replaceChildren(h('div', 'panel',
       h('div', 'panel-head', h('h3', '', '⚖️ A · B 비교'), h('span', 'grow'), aiButton('compare', st, pair)),
@@ -562,14 +563,31 @@ const CALIB_NOTES = {
     '음력 생일은 천문연 음력표로 양력으로 바꿔서 계산해요(윤달 포함).'],
   liuren: ['귀인: 甲戊庚 丑/未 · 乙己 子/申 · 丙丁 亥/酉 · 壬癸 卯/巳 · 辛 午/寅 (주점/야점).', '귀인이 앉은 지반이 亥~辰이면 순행, 巳~戌이면 역행.',
     '섭해는 간편법(맹 → 중 → 양일은 간상·음일은 지상).', '주점·야점 "자동"은 卯~申시를 낮으로 봐요. 판마다 보기에서 바꿀 수 있어요.'],
-  qimen: ['연국(시가)기문 · 전반식.', '국 정하는 법: 절기중심법(拆補法) — 그날이 든 절기와 부두(직전 甲·己일)로 상·중·하원을 정해요. 초신접기법(置閏法)은 아직 없어요.',
-    '중5궁은 곤2궁에 기궁.', '팔신은 양둔·음둔 모두 직부 등사 태음 육합 백호 현무 구지 구천.', '명국의 음력 생일은 천문연 음력표로 양력으로 바꿔요(윤달 포함).'],
+  qimen: ['연국(시가)기문 · 전반식. 중5궁은 곤2궁에 기궁.', '명국의 음력 생일은 천문연 음력표로 양력으로 바꿔요(윤달 포함).'],
   tarot: ['78장을 섞어 위에서부터 자리 수만큼 뽑아요.', '역방향을 쓰면 카드마다 반반 확률로 뒤집혀요.'],
 };
+// 기문 유파·규칙 고르기 (보기·비교·저장한 판 모두 이 설정으로 다시 계산)
+function qimenRules() {
+  const row = (label, items, key, def, notes) => {
+    const note = h('p', 'hint');
+    const show = v => { note.textContent = notes[v]; };
+    show(prefs[key] || def);
+    return h('div', 'calib-row', h('div', 'field', label, seg(items, prefs[key] || def, v => { prefs[key] = v; savePrefs(); show(v); })), note);
+  };
+  return h('div', 'panel', h('div', 'panel-head', h('h3', '', '🧭 기문 규칙')),
+    row('국 정하는 법', [['chaibo', '절기중심법 (拆補)'], ['zhirun', '초신접기 (置閏)']], 'qmJu', 'chaibo', {
+      chaibo: '그날이 든 절기와 그날의 부두(직전 甲·己일)로 상·중·하원을 정해요. 중국 연국 기문에서 흔한 방식이에요.',
+      zhirun: '상원 부두부터 절기마다 15일씩 붙이고, 초신이 9일 이상 쌓이면 망종·대설에 윤국을 둬요. 한국 홍연기문 계열에서 많이 쓰고, 참고 앱과 같아요.' }),
+    row('양둔 팔신', [['hm', '백호·현무'], ['jj', '구진·주작']], 'qmGods', 'hm', {
+      hm: '양둔·음둔 모두 직부 등사 태음 육합 백호 현무 구지 구천.',
+      jj: '양둔은 직부 등사 태음 육합 구진 주작 구지 구천, 음둔은 백호·현무(陽遁用勾陳朱雀). 참고 앱과 같아요.' }),
+    h('p', 'hint', '📖 용어: ', termChip('qm-chaibo'), ' ', termChip('qm-chosin'), ' ', termChip('qm-g-gujin')));
+}
 function renderCalib(view, subj) {
   const rev = inp('checkbox', ''); rev.checked = prefs.tarotRev;
   rev.addEventListener('change', () => { prefs.tarotRev = rev.checked; savePrefs(); });
   view.replaceChildren(
+    subj === 'qimen' ? qimenRules() : '',
     subj === 'tarot'
       ? h('div', 'panel', h('div', 'panel-head', h('h3', '', '🃏 뽑기')), h('label', 'check', rev, '역방향 카드 쓰기'))
       : h('div', 'panel', h('div', 'panel-head', h('h3', '', '⚙️ 공통 설정'), h('span', 'grow'), button('⚙️ 바꾸기', () => $('settingsBtn').click(), 'btn')),

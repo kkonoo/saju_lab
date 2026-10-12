@@ -133,6 +133,8 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .birth input[type=number] { width: 4.6em; }
 .birth input[type=number]:first-child { width: 6.2em; }
 .calib-notes { margin: 0; padding-left: 1.2em; line-height: 1.7; }
+.calib-row + .calib-row { margin-top: 12px; }
+.calib-row .hint { margin: 4px 0 0; }
 .ask { margin-top: 10px; }
 .ask > summary { cursor: pointer; font-weight: 600; font-size: calc(14px * var(--fs)); }
 .ask > * + * { margin-top: 8px; }

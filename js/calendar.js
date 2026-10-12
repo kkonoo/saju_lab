@@ -72,7 +72,7 @@ function fourPillars(y, m, d, h, mi, opt = {}) {
   const k = mod(monthZhi - 2, 12); // 寅월부터 몇 번째
   const monthGan = mod((yearIdx % 5) * 2 + 2 + k, 10);
   return {
-    utc, local: { h: lh, m: lm }, sajuYear: sy,
+    utc, local: { h: lh, m: lm }, sajuYear: sy, dayNum: jdn - 2440588, // dayNum: 일주가 가리키는 날(1970-01-01부터 날 수)
     year: gz60(yearIdx), month: GAN[monthGan] + JI[monthZhi], day: gz60(dayIdx), hour: GAN[hourGan] + JI[hourZhi],
     jeol, nextJeol, jeolgi: lastJeolgi(utc).prev,
   };

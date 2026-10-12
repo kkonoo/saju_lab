@@ -5,7 +5,7 @@ const SS_ID = { 비견: 'mr-bigyeon', 겁재: 'mr-geopjae', 식신: 'mr-siksin',
 const JIANG_ID = { 귀인: 'lr-gwiin', 등사: 'lr-deungsa', 주작: 'lr-jujak', 육합: 'lr-yukhap', 구진: 'lr-gujin', 청룡: 'lr-cheongnyong', 천공: 'lr-cheongong', 백호: 'lr-baekho', 태상: 'lr-taesang', 현무: 'lr-hyeonmu', 태음: 'lr-taeeum', 천후: 'lr-cheonhu' };
 const STAR_ID = { 천봉: 'qm-s-bong', 천예: 'qm-s-ye', 천충: 'qm-s-chung', 천보: 'qm-s-bo', 천금: 'qm-s-geum', 천심: 'qm-s-sim', 천주: 'qm-s-ju', 천임: 'qm-s-im', 천영: 'qm-s-yeong' };
 const DOOR_ID = { 휴문: 'qm-d-hyu', 생문: 'qm-d-saeng', 상문: 'qm-d-sang', 두문: 'qm-d-du', '경문(景)': 'qm-d-gyeong9', 사문: 'qm-d-sa', '경문(驚)': 'qm-d-gyeong7', 개문: 'qm-d-gae' };
-const GOD_ID = { 직부: 'qm-g-jikbu', 등사: 'qm-g-deungsa', 태음: 'qm-g-taeeum', 육합: 'qm-g-yukhap', 백호: 'qm-g-baekho', 현무: 'qm-g-hyeonmu', 구지: 'qm-g-guji', 구천: 'qm-g-gucheon' };
+const GOD_ID = { 직부: 'qm-g-jikbu', 등사: 'qm-g-deungsa', 태음: 'qm-g-taeeum', 육합: 'qm-g-yukhap', 백호: 'qm-g-baekho', 현무: 'qm-g-hyeonmu', 구진: 'qm-g-gujin', 주작: 'qm-g-jujak', 구지: 'qm-g-guji', 구천: 'qm-g-gucheon' };
 const METHOD_ID = [['중심과', 'lr-jeokgeuk'], ['원수과', 'lr-jeokgeuk'], ['지일과', 'lr-biyong'], ['섭해', 'lr-seophae'], ['요극', 'lr-yogeuk'], ['묘성', 'lr-myoseong'], ['별책', 'lr-byeolchaek'], ['팔전', 'lr-paljeon'], ['복음', 'lr-bogeum'], ['반음', 'lr-baneum']];
 const short = id => TERMS.get(id)?.short || '';
 const ohCls = c => `oh-${ohOf(c)}`;
@@ -209,8 +209,8 @@ function drawQimen(r, aiFor) {
     const earth = tip('e', x.earth, `지반 ${x.earth}`, [charInfo(x.earth), `${r.dun} ${r.ju}국이라 이 궁 지반에 ${x.earth}가 놓여요. 지반은 국수로 정해지고 시가 바뀌어도 그대로예요.`, short('qm-jiban')], ['qm-jiban', 'qm-guksu', 'qm-samgi-yugui']);
     if (p === 5) {
       grid.append(box('qm-cell center', [gname, marks, h('div', 'stems glyph', earth),
-        tip('small muted', `${r.dun} ${r.ju}국`, `${r.dun} ${r.ju}국`, [r.term ? `${r.term} ${r.yuan}(부두 ${r.futou})이라 ${r.dun} ${r.ju}국이에요.` : '', short('qm-guksu')], ['qm-guksu', 'qm-yangdun-eumdun', 'qm-samwon', 'qm-budu']),
-        tip('small muted', `${r.shi}시`, `${r.shi}시 · 순수 ${r.xun}`, [`시주 ${r.shi}는 ${r.xun} 순이라 순수 의는 ${r.fuYi}예요. 직부 ${r.zhifu}, 직사 ${r.zhishi}.`, short('qm-sunsu')], ['qm-sunsu', 'qm-jikbu', 'qm-jiksa'])],
+        h('div', '', tip('small muted', `${r.dun} ${r.ju}국`, `${r.dun} ${r.ju}국`, [r.term ? `${r.term} ${r.yuan}(부두 ${r.futou})이라 ${r.dun} ${r.ju}국이에요.` : '', short('qm-guksu')], ['qm-guksu', 'qm-yangdun-eumdun', 'qm-samwon', 'qm-budu'])),
+        h('div', '', tip('small muted', `${r.shi}시`, `${r.shi}시 · 순수 ${r.xun}`, [`시주 ${r.shi}는 ${r.xun} 순이라 순수 의는 ${r.fuYi}예요. 직부 ${r.zhifu}, 직사 ${r.zhishi}.`, short('qm-sunsu')], ['qm-sunsu', 'qm-jikbu', 'qm-jiksa']))],
         () => openHint(QM_GUNG[5], [gungLine, `지반 ${x.earth}. 중궁은 문·신이 없고, 이 앱에서는 곤2궁에 붙여(기궁) 움직여요.`, r.term ? `${r.term} ${r.yuan}(부두 ${r.futou}) · ${r.dun} ${r.ju}국 · ${r.shi}시` : `${r.dun} ${r.ju}국 · ${r.shi}시`,
           mk?.gan.length ? `${mk.gan.join('·')} 천간이 지반에 앉은 궁이에요. ${mk.gan.map(w => `${w}간 — ${QM_WHO[w]}`).join(' · ')}` : '',
           aiFor?.('p5', `중5궁: 지반 ${x.earth}${mk?.gan.length ? ` · ${mk.gan.join('')}간` : ''}`)].filter(Boolean), ['qm-gigung', 'qm-gugung', 'qm-guksu'])));
@@ -240,7 +240,10 @@ function drawQimen(r, aiFor) {
       h('div', '', tip(`door ${doorCls}`, x.door, `팔문 ${x.door}`, [short(DOOR_ID[x.door]), ...(TERMS.get(DOOR_ID[x.door])?.body || []).slice(0, 1)], [DOOR_ID[x.door], 'qm-palmun', 'qm-gilmun']))], palaceHint));
   }
   const meta = h('div', 'board-meta',
-    r.term ? h('span', '', h('b', '', `${r.term} ${r.yuan}`), ` (부두 ${r.futou})`) : null,
+    r.term ? h('span', '', h('b', '', `${r.zr?.leap ? '윤' : ''}${r.term} ${r.yuan}`), ` (부두 ${r.futou})`) : null,
+    r.zr ? tip('', r.zr.d > 0 ? `초신 ${r.zr.d}일` : r.zr.d < 0 ? `접기 ${-r.zr.d}일` : '정수', '초신접기(置閏法)', [
+      `이 판은 🔧 보정의 초신접기법으로 국을 정했어요. ${r.term} 국은 상원 부두일부터 시작하는데, ${r.zr.d > 0 ? `부두가 절입보다 ${r.zr.d}일 먼저 와서 초신이에요` : r.zr.d < 0 ? `부두가 절입보다 ${-r.zr.d}일 늦게 와서 접기예요` : '부두와 절입이 같은 날이라 정수예요'}.`,
+      r.zr.leap ? `초신이 9일 이상 쌓여서 ${r.term}을 한 번 더 쓰는 윤국이에요.` : '', short('qm-chosin')], ['qm-chosin', 'qm-chaibo']) : null,
     h('span', '', h('b', '', `${r.dun} ${r.ju}국`), ` · ${r.shi}시`),
     h('span', '', `순수 ${r.xun}${r.fuYi} → 직부 ${r.zhifu}, 직사 ${r.zhishi}`),
     h('span', '', '공망 ', h('b', 'kong', r.kong.join(''))),
