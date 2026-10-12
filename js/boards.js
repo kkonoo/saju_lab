@@ -60,6 +60,31 @@ function zhiHint(p, r) {
   if (r.kong.includes(p.zhi)) lines.push(`일주 기준 공망(${r.kong.join('')})에 들어요.`);
   openHint(`${p.pos}지 ${p.zhi}`, lines, ['mr-jijanggan', SS_ID[p.zhiSs], p.pos === '월' ? 'mr-wollyeong' : 'base-jiji', 'mr-12unseong'].filter(Boolean));
 }
+// 일주 풀이: 일간·일지(배우자 자리·바탕)·십신·지장간·12운성 + 이름 붙은 일주
+const UNSEONG_NOTE = { 장생: '막 태어나 자라기 시작하는 자리', 목욕: '씻고 드러나는 자리(감각·꾸밈, 들뜨기 쉬움)', 관대: '갓 쓰고 띠를 맨 자리(자신감·의욕)',
+  건록: '스스로 녹을 먹는 자리(자립·안정된 힘)', 제왕: '기운이 가장 왕성한 자리', 쇠: '기운이 기울기 시작하는 자리(노련함·차분함)', 병: '기운이 약해지는 자리(섬세함·예민함)',
+  사: '움직임이 멈추는 자리(깊은 생각)', 묘: '거두어 갈무리하는 자리(모으고 지킴)', 절: '끊어지고 바뀌는 자리(변화·새 출발)', 태: '잉태되는 자리(가능성·구상)', 양: '뱃속에서 길러지는 자리(준비·보살핌)' };
+const iye = w => w + ((w.charCodeAt(w.length - 1) - 0xAC00) % 28 ? '이에요' : '예요'); // 받침 따라 이에요/예요
+const SS_FLOW = { 비견: '나와 같은 기운이 바탕을 받쳐 줘요', 겁재: '나와 같은 기운이 바탕을 받쳐 줘요', 식신: '내가 바탕을 생해 기운을 내보내요(표현·재주)', 상관: '내가 바탕을 생해 기운을 내보내요(표현·재주)',
+  편재: '내가 바탕을 극해 다스리고 써요(재물·현실)', 정재: '내가 바탕을 극해 다스리고 써요(재물·현실)', 편관: '바탕이 나를 극해 다잡아요(규율·책임·압박)', 정관: '바탕이 나를 극해 다잡아요(규율·책임·압박)',
+  편인: '바탕이 나를 생해 길러 줘요(배움·보호)', 정인: '바탕이 나를 생해 길러 줘요(배움·보호)' };
+function iljuHint(gz) {
+  const [g, z] = gz, ss = sipsin(g, mrBon(z)), un = unseong(g, z);
+  const named = [
+    ohOf(g) === ohOf(z) && '간여지동 — 천간과 지지가 같은 오행이라 자기 기운이 단단하고 주관이 뚜렷하다고 봐요. 배우자 자리에 나와 같은 기운이 있어 부딪히기 쉽다고도 해요.',
+    ['庚辰', '庚戌', '壬辰', '壬戌'].includes(gz) && '괴강 일주 — 기운이 세고 결단력이 있다고 보는 일주예요. 극단으로 흐르기 쉽다고도 해요(戊戌을 넣는 유파도 있어요).',
+    ['甲辰', '乙未', '丙戌', '丁丑', '戊辰', '壬戌', '癸丑'].includes(gz) && '백호 일주 — 예전엔 사고·피를 보는 살로 읽었고, 요즘은 강한 추진력·전문성으로 풀기도 해요.',
+    isYangGan(g) && un === '제왕' && '양인 일주 — 일지가 일간의 양인(제왕) 자리라 기운이 아주 강하고 승부욕이 있다고 봐요.',
+    un === '건록' && '건록 일주(전록) — 일지가 일간의 건록 자리라 스스로 서는 힘이 있다고 봐요.',
+  ].filter(Boolean);
+  openHint(`일주 ${gz} (${ko(gz)})`, [
+    `일간 ${g}(${OH_KO[ohOf(g)]}·${isYangGan(g) ? '양' : '음'}) · 일지 ${z}(${OH_KO[ohOf(z)]}). 일간은 나, 일지는 배우자 자리이자 내가 서 있는 바탕(생활·몸)으로 봐요.`,
+    `일지는 일간에게 ${iye(ss)}(정기 기준). ${SS_FLOW[ss]}. ${short(SS_ID[ss])}`,
+    `지장간 ${[...MR_JJG[z]].map(s => `${s}(${sipsin(g, s)})`).join(' · ')} — 마지막이 정기예요.`,
+    `12운성 ${un}: ${UNSEONG_NOTE[un]}.`,
+    ...named,
+  ], ['mr-ilgan', SS_ID[ss], 'mr-jijanggan', 'mr-12unseong', 'mr-gungwi', named.length ? 'mr-sinsal' : null].filter(Boolean));
+}
 function daeunStrip(r) {
   const nowYear = new Date().getFullYear(), age = nowYear - new Date(r.info.utc).getUTCFullYear() + 1; // 세는 나이
   const strip = h('div', 'daeun');
