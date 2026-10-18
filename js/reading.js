@@ -238,7 +238,8 @@ function qimenBirth(top, out) {
   }
   function chipBar(cd) { // 기본 말고 더 볼 것
     const layer = prefs.qmLayer || 'both';
-    const list = [...(layer !== 'hong' ? QM_CHIPS.yeon : []), ...(layer !== 'yeon' ? QM_CHIPS.hong.filter(([k]) => cd.k === 'won' || (k !== 'daeun' && k !== 'soun')) : [])];
+    const list = [...(layer !== 'hong' ? QM_CHIPS.yeon : QM_CHIPS.yeon.filter(([k]) => k === 'door')), // 홍국만 볼 때도 팔문(홍국 팔문)은 켤 수 있음
+      ...(layer !== 'yeon' ? QM_CHIPS.hong.filter(([k]) => cd.k === 'won' || (k !== 'daeun' && k !== 'soun')) : []), ['dong', '동처']];
     return chipRow('더 보기', list, prefs.qmShow ||= {}, draw);
   }
   function draw() {
@@ -247,11 +248,11 @@ function qimenBirth(top, out) {
     const cd = chartDate();
     st.slot = cd.slot || '';
     const r = qimenAt(...parseDT({ date: cd.date, time: i.time }), qmOpt());
-    const birth = cd.k === 'won' ? r.pillars : qimenAt(...parseDT(i), qmOpt()).pillars;
-    const hk = honggukCalc(r.pillars, i.male, birth.sajuYear, r.dun === '양둔');
+    const born = cd.k === 'won' ? r : qimenAt(...parseDT(i), qmOpt()), birth = born.pillars, bornYang = born.dun === '양둔'; // 소운은 원명국의 양둔·음둔으로
+    const hk = honggukCalc(r.pillars, i.male, birth.sajuYear, r.dun === '양둔', bornYang);
     const thisYear = +today.slice(0, 4), won = cd.k === 'won';
     const hv = { hk, layer: prefs.qmLayer || 'both', show: prefs.qmShow || {}, thisYear, won, P: r.pillars }; // 대운·소운은 원명국에만
-    if (won) { hv.years = {}; for (let y = thisYear; y < thisYear + 9; y++) hv.years[hkSoun(y, i.male)] = y; }
+    if (won) { hv.years = {}; for (let y = thisYear; y < thisYear + 9; y++) hv.years[hkSoun(y, i.male, bornYang)] = y; }
     if (cd.k === 'year') { // 행년 궁(중5면 곤2)과 달: 달은 월지가 속한 궁에 고정(1월 寅 간8, 2월 卯 진3 …)
       const hp = hkHaengnyeon(cd.y, i.male, birth.sajuYear);
       Object.assign(hv, { haeng: hp === 5 ? 2 : hp, haengFrom5: hp === 5, haengYear: cd.y, months: {}, nowMonth: cd.y === tl.y ? tl.m : 0 });
@@ -269,7 +270,7 @@ function qimenBirth(top, out) {
       chartBar(cd), chipBar(cd),
       drawQimen(r, (part, focus) => aiPart('qimenBirth', st, r, `${st.slot}${part}`, focus), hv)),
       ...aiBox('qimenBirth', st, r),
-      h('p', 'hint', '💡 연국기문 명반에 홍국을 겹쳤어요. 홍국 규칙은 참고 앱 판(남녀 원명국·年局·日局)과 맞췄어요. 홍국 팔문·태을구성·강약·기의백격은 아직 없어요.'));
+      h('p', 'hint', '💡 연국기문 명반에 홍국을 겹쳤어요. 홍국 규칙은 참고 앱 판(남녀 원명국·年局·日局)과 맞췄어요. 홍국 팔문은 참고 앱 두 판으로 맞춘 추정이에요. 태을구성·강약·기의백격은 아직 없어요.'));
   }
   top.append(
     h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex)),
@@ -434,21 +435,21 @@ function myeongriText(i, r) {
 }
 function hongText(hk, r) {
   const yr = q => r.hv?.years?.[q] ? ` · ${r.hv.years[q]}년 소운` : '', won = r.hv?.won;
-  return [`[홍국] 천반수 / 육친${won ? ' / 대운' : ''} · 지반수 / 육친${won ? ' / 대운' : ''} · 유년 · 12운성 · 형충 · 신살`,
+  return [`[홍국] 천반수 / 육친${won ? ' / 대운' : ''} · 지반수 / 육친${won ? ' / 대운' : ''} · 홍국 팔문 · 유년 · 12운성 · 형충 · 신살`,
     '육친 다른 이름: 父=부모·인수(인성), 兄=형제·비겁, 孫=자손·식상, 財=처재·재성, 官=정관, 鬼=편관·칠살',
     `중궁 ${HK_GUK_KO[hk.guk]}(${hk.guk}): 천반 ${hk.ch}(${hk.palaces[5].relH}) · 지반 ${hk.ce}(${hk.palaces[5].relE}) · 世 ${QM_GUNG[hk.se]}(지반수 ${hk.seNum}) · 일공 ${hk.kongDay.join('')}`,
     ...[1, 2, 3, 4, 6, 7, 8, 9, 5].map(q => {
       const x = hk.palaces[q];
-      return `${QM_GUNG[q]}: 천${x.heaven}/${x.relH}${won ? `/${x.daeun.heaven.join('~')}세` : ''} · 지${x.earth}/${x.relE}${won ? `/${x.daeun.earth.join('~')}세` : ''}${x.yunyeon ? ` · ${x.yunyeon}` : ''}${x.unseong.length ? ` · ${x.unseong.map(u => u.z + u.u).join(' ')}` : ''}${x.label ? ` · ${x.label}` : ''}${x.sinsal.length ? ` · 신살 ${x.sinsal.map(t => (t.fu ? '伏' : '') + t.name).join(' ')}` : ''}${yr(q)}`;
+      return `${QM_GUNG[q]}: 천${x.heaven}/${x.relH}${won ? `/${x.daeun.heaven.join('~')}세` : ''} · 지${x.earth}/${x.relE}${won ? `/${x.daeun.earth.join('~')}세` : ''}${x.door ? ` · 홍국 ${x.door}` : ''}${x.yunyeon ? ` · ${x.yunyeon}` : ''}${x.unseong.length ? ` · ${x.unseong.map(u => u.z + u.u).join(' ')}` : ''}${x.label ? ` · ${x.label}` : ''}${x.sinsal.length ? ` · 신살 ${x.sinsal.map(t => (t.fu ? '伏' : '') + t.name).join(' ')}` : ''}${yr(q)}`;
     }),
-    won ? `소운: 올해 ${new Date().getFullYear()}년은 ${QM_GUNG[hkSoun(new Date().getFullYear(), hk.male)]}` : '',
+    won ? `소운: 올해 ${new Date().getFullYear()}년은 ${QM_GUNG[hkSoun(new Date().getFullYear(), hk.male, hk.bornYang)]}` : '',
     r.hv?.haeng ? `행년(${r.hv.haengYear}): ${QM_GUNG[r.hv.haeng]}` : ''].filter(Boolean).join('\n');
 }
 function qimenText(r) {
   const m = r.marks, p = r.pillars;
   return [`사주 ${p.year} ${p.month} ${p.day} ${p.hour} (년 월 일 시)`,
     `${r.term} ${r.yuan}(부두 ${r.futou}) · ${r.dun} ${r.ju}국 · 시 ${r.shi} · 순수 ${r.xun}(부의 ${r.fuYi}) · 직부 ${r.zhifu} → ${QM_GUNG[r.zhifuTo]} · 직사 ${r.zhishi} → ${QM_GUNG[r.zhishiTo]} · 공망 ${r.kong.join('')}`,
-    '[9궁] 천반 / 지반 / 구성 / 팔문 / 팔신 / 사주 표시(년·월·일·시의 천간이 지반에 든 궁, 지지가 속한 궁)',
+    `[9궁] 천반 / 지반 / 구성 / ${r.hk ? '연국 팔문' : '팔문'} / 팔신 / 사주 표시(세(년)·월·일·시의 천간이 지반에 든 궁, 지지가 속한 궁)`,
     ...Object.entries(r.palaces).map(([n, c]) => `${QM_GUNG[n]}: ${c.heaven || '-'} / ${c.earth || '-'} / ${c.star || '-'} / ${c.door || '-'} / ${c.god || '-'}` +
       (m[n] ? ` / ${[m[n].gan.length && `천간 ${m[n].gan.join('·')}`, m[n].ji.length && `지지 ${m[n].ji.join('·')}`].filter(Boolean).join(', ')}` : '')), r.hk ? hongText(r.hk, r) : ''].filter(Boolean).join('\n');
 }
