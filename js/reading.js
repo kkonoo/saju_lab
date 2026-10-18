@@ -131,11 +131,14 @@ function readMyeongri(view) {
   draw();
 }
 
-// 켜고 끄는 칩 줄 (켜 둔 것은 이 브라우저에 기억)
+// 켜고 끄는 칩 줄 (켜 둔 것은 이 브라우저에 기억). 항목은 [키, 이름, 지금 못 쓰는 까닭(있으면 흐리게)] 또는 '|'(묶음 사이)
 function chipRow(label, list, show, redraw) {
-  return h('div', 'chips qm-chips no-print', h('span', 'muted small', label), ...list.map(([k, name]) => {
+  return h('div', 'chips qm-chips no-print', h('span', 'muted small', label), ...list.map(it => {
+    if (it === '|') return h('span', 'chip-sep');
+    const [k, name, why] = it;
     const b = button(name, () => { show[k] = !show[k]; savePrefs(); redraw(); }, 'chip');
-    b.classList.toggle('on', !!show[k]);
+    b.classList.toggle('on', !!show[k] && !why);
+    if (why) Object.assign(b, { disabled: true, title: why });
     return b;
   }));
 }
@@ -236,10 +239,12 @@ function qimenBirth(top, out) {
       seg(QM_CHARTS, cd.k, v => move(() => { st.chart = v; })), h('span', 'row', ...ctl),
       seg([['both', '연국+홍국'], ['yeon', '연국'], ['hong', '홍국']], prefs.qmLayer || 'both', v => { prefs.qmLayer = v; savePrefs(); draw(); }));
   }
-  function chipBar(cd) { // 기본 말고 더 볼 것
+  function chipBar(cd) { // 기본 말고 더 볼 것. 칩 자리는 늘 그대로 두고, 이 판·이 보기에서 못 쓰는 칩만 흐리게
     const layer = prefs.qmLayer || 'both';
-    const list = [...(layer !== 'hong' ? QM_CHIPS.yeon : QM_CHIPS.yeon.filter(([k]) => k === 'door')), // 홍국만 볼 때도 팔문(홍국 팔문)은 켤 수 있음
-      ...(layer !== 'yeon' ? QM_CHIPS.hong.filter(([k]) => cd.k === 'won' || (k !== 'daeun' && k !== 'soun')) : []), ['dong', '동처']];
+    const why = k => (layer === 'yeon' && !['door', 'star', 'god', 'jiban', 'dong'].includes(k) ? '홍국을 볼 때만 써요'
+      : layer === 'hong' && ['star', 'god', 'jiban'].includes(k) ? '연국을 볼 때만 써요' // 팔문은 홍국 팔문이라 홍국만 볼 때도 씀
+      : cd.k !== 'won' && (k === 'daeun' || k === 'soun') ? '원명국에서만 써요' : '');
+    const list = QM_CHIPS.flatMap((g, i) => [...(i ? ['|'] : []), ...g.map(([k, name]) => [k, name, why(k)])]);
     return chipRow('더 보기', list, prefs.qmShow ||= {}, draw);
   }
   function draw() {

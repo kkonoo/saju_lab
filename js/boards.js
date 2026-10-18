@@ -291,9 +291,9 @@ const HK_SS_ONE = { 日祿: ['일록', '일간의 녹(祿) — 먹고사는 힘�
 const ssKo = n => HK_SS_ONE[n]?.[0] || `${n[0] === '歲' ? '세' : '일'}${HK_SS_KIND[n[1]][0].slice(0, 1)}`;
 const HK_REL_SUF = [['怨嗔', '원진'], ['自刑', '자형'], ['沖', '충'], ['刑', '형'], ['破', '파'], ['殺', '살']];
 const relKo = l => { if (l === '九金殺') return '구금살'; const b = l.replace('(害)', ''); return ko(b.slice(0, 2)) + HK_REL_SUF.find(([a]) => b.endsWith(a))[1] + (b !== l ? '(해)' : ''); };
-// 칩으로 켜고 끄는 것(기본은 연도·천반·홍국수와 위아래 육친)
-const QM_CHIPS = { yeon: [['jiban', '지반'], ['door', '팔문'], ['star', '구성'], ['god', '팔신']],
-  hong: [['daeun', '대운'], ['soun', '소운'], ['yun', '유년'], ['un', '12운성'], ['rel', '형충'], ['sinsal', '신살']] };
+// 칩으로 켜고 끄는 것(기본은 연도·천반·홍국수와 위아래 육친). 묶음: 때 | 연국 칸 글자 | 홍국 칸 글자·표시 | 칸 칠하기
+const QM_CHIPS = [[['daeun', '대운'], ['soun', '소운']], [['door', '팔문'], ['star', '구성'], ['god', '팔신'], ['jiban', '지반']],
+  [['yun', '유년'], ['un', '12운성'], ['rel', '형충'], ['sinsal', '신살']], [['dong', '동처']]];
 
 function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 줄 + AI에 줄 요약
   const hk = hv.hk, x = hk.palaces[p], g = hk.male ? 0 : 1, sOh = HK_OH(hk.seNum), on = k => !!hv.show?.[k];

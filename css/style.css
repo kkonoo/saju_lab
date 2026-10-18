@@ -224,6 +224,8 @@ dialog h2 { margin: 4px 0 10px; font-size: calc(16px * var(--fs)); }
 .qm-cell.now { border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
 .qm-chips { margin: -2px 0 10px; gap: 5px; }
 .qm-chips .chip { font-size: calc(12px * var(--fs)); }
+.chip:disabled { opacity: .35; cursor: default; }
+.chip-sep { width: 1px; align-self: stretch; margin: 3px 2px; background: var(--line); }
 .qm-cell.hk { padding: 5px 6px 6px; min-height: 0; }
 .hk-head { display: flex; align-items: flex-start; gap: 4px; }
 .qm-cell.hk .marks { position: static; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
