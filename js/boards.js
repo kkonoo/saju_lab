@@ -336,7 +336,7 @@ function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 
     `이 신살의 지지는 ${ko(s.z)}(${s.z})예요. ${'劫馬亡'.includes(s.name[1]) || HK_SS_ONE[s.name] ? `지지의 홍국수(${HK_JI_NUM[s.z]})가 지반수인 궁에 놓아요.` : '그 지지가 속한 궁에 놓아요.'}`,
     s.fu ? '그 수가 이 판 지반에 없어서 숨은(伏) 채로 중궁에 둬요.' : '', short('qm-hk-sinsal')], ['qm-hk-sinsal', 'base-sinsal'])), ' ') : '';
   const ages = on('soun') && hv.won && x.ages.length ? tip('hk-ages', x.ages.join(','), '소운(小運) 나이', [`이 나이에 소운이 이 궁에 머물러요(세는 나이, ${hk.sajuYear}년이 1세).`,
-    `원명국이 ${hk.bornYang ? '양둔' : '음둔'}이라 甲子년(1984·2044)을 ${QM_GUNG[hkSoun(1984, hk.male, hk.bornYang)]}에 두고 해마다 한 궁씩 낙서 순서로 ${hk.bornYang ? '차례로' : '거꾸로'} 옮겨요. 60년마다 甲子년에 처음 궁으로 돌아와서 나이가 한 번 건너뛰어요.`, short('qm-hk-soun')], ['qm-hk-soun']) : '';
+    `원명국이 ${hk.born.yang ? '양둔' : '음둔'} ${hk.born.ju}국이라 甲子년(1984·2044)을 ${QM_GUNG[hk.born.ju]}에 두고 해마다 한 궁씩 낙서 순서로 ${hk.born.yang ? '차례로' : '거꾸로'} 옮겨요(남녀 같음). 60년마다 甲子년에 처음 궁으로 돌아와서 나이가 한 번 건너뛰어요.`, short('qm-hk-soun')], ['qm-hk-soun']) : '';
   const yr = hv.years?.[p] ? tip(`hk-yr${hv.years[p] === hv.thisYear ? ' now' : ''}`, String(hv.years[p]), `${hv.years[p]}년 (${hv.years[p] - hk.sajuYear + 1}세)`, [
     `소운이 이 궁에 드는 해예요. 올해부터 9년을 아홉 궁에 하나씩 적었어요${hv.years[p] === hv.thisYear ? ' — 올해예요' : ''}.`, short('qm-hk-soun')], ['qm-hk-soun']) : '';
   const mo = hv.months?.[p]?.length ? tip(`hk-yr${hv.months[p].includes(hv.nowMonth) ? ' now' : ''}`, `${hv.months[p].join('·')}월`, `음력 ${hv.months[p].join('·')}월`, [
@@ -413,7 +413,7 @@ function drawQimen(r, aiFor, hv) { // hv: 명국이면 홍국 { hk, layer, show,
       [...(yeon && p !== 5 ? [STAR_ID[starName], DOOR_ID[door], GOD_ID[x.god], 'qm-cheonban'] : []), hkDoor && p !== 5 ? 'qm-hk-palmun' : null, p === 5 ? 'qm-gigung' : null, p === 5 && hong ? 'qm-hk-guk' : null, kong ? 'qm-gongmang' : null].filter(Boolean));
     const doorCls = GIL_DOOR.includes(door) ? 'gil' : HYUNG_DOOR.includes(door) ? 'hyung' : '';
     const doorTip = big => tip(`${big ? 'door' : 'hk-s door'} ${doorCls}`, big ? doorKh : DOOR_HJ[door][0], `${hkDoor ? '홍국 팔문' : '팔문'} ${doorKh}`, [short(DOOR_ID[door]), ...(TERMS.get(DOOR_ID[door])?.body || []).slice(0, 1),
-      hkDoor ? `홍국 팔문이에요: 지반 중궁수 ${HK_HAN[hv.hk.ce]} → ${QM_GUNG[hv.hk.base]}에 사문을 두고, 중5궁을 건너뛰며 낙서 순서로 ${r.dun === '양둔' ? '차례로' : '거꾸로'} 경(驚)·생·휴·경(景)·개·두·상을 붙여요(참고 앱 두 판과 맞춘 추정). 연국 팔문은 ${x.door ? kh(x.door, DOOR_HJ[x.door]) : '-'}이에요.` : ''],
+      hkDoor ? `홍국 팔문이에요: 世 궁(${QM_GUNG[hv.hk.se]})에 ${hv.hk.yang ? '개문' : '생문'}이 오도록, 휴·생·상·두·경(景)·사·경(驚)·개를 ${hv.hk.yang ? '진3 곤2 간8 태7 손4 리9 감1 건6' : '태7 간8 곤2 진3 건6 감1 리9 손4'} 궁 순서로 돌려 붙여요(참고 앱 판 네 장과 맞춘 추정). 연국 팔문은 ${x.door ? kh(x.door, DOOR_HJ[x.door]) : '-'}이에요.` : ''],
       [hkDoor ? 'qm-hk-palmun' : null, DOOR_ID[door], 'qm-palmun', 'qm-gilmun'].filter(Boolean));
     const starTip = big => tip(big ? 'star' : 'hk-s star', big ? starKh(x.star) : STAR_HJ[starName][1], `구성 ${starKh(x.star)}`, [short(STAR_ID[starName]), x.star.includes('·') ? '천금성(天禽星)은 중5궁의 별이라 곤2궁의 천예(天芮)와 함께 움직여요(기궁).' : ''], [STAR_ID[starName], 'qm-guseong', x.star.includes('·') ? 'qm-gigung' : null]);
     const godTip = big => tip(big ? 'god' : 'hk-s god', big ? godKh : GOD_1[x.god], `팔신 ${godKh}`, [short(GOD_ID[x.god]), ...(TERMS.get(GOD_ID[x.god])?.body || []).slice(0, 1)], [GOD_ID[x.god], 'qm-palsin']);
@@ -434,7 +434,8 @@ function drawQimen(r, aiFor, hv) { // hv: 명국이면 홍국 { hk, layer, show,
         [hp?.yun, hp?.numE, stemE, yeon && !center && on('god') ? godTip() : ''],
         Object.assign(relRow(hp?.relE, hp?.duE), { 0: hp?.un }),
       ];
-      const dong = on('dong') && (mk?.gan.length || mk?.ji.length), seCell = on('dong') && hong && p === hk.se; // 동처: 사주 글자가 든 궁 음영, 世 궁은 분홍
+      // 동처: 세·월·시 글자가 든 궁과 중궁은 음영, 世 궁은 분홍 (참고 앱처럼 일간·일지만 든 궁은 안 칠함)
+      const dong = on('dong') && (center || [...(mk?.gan || []), ...(mk?.ji || [])].some(w => w !== '일')), seCell = on('dong') && hong && p === hk.se;
       grid.append(box(`qm-cell hk${center ? ' center' : ''}${now ? ' now' : ''}${dong ? ' dong' : ''}${seCell ? ' se-cell' : ''}`, [head, top.children.length ? top : '', hkGrid(rows),
         hp?.lab ? h('div', 'hk-foot', hp.lab) : '', hp?.ss || '', hp?.ages || ''], palaceHint));
       continue;
@@ -462,7 +463,7 @@ function drawQimen(r, aiFor, hv) { // hv: 명국이면 홍국 { hk, layer, show,
     : '칸마다 위에서부터 팔신 · 구성 · 천반간(큰 글자)과 지반간 · 팔문. ',
     '위쪽이 남쪽이에요. 글자·표시를 하나씩 누르면 그것만, 궁 이름이나 빈 곳을 누르면 그 궁을 통째로 보여 줘요.',
     r.marks ? ' 진한 표시(예: 시일간)는 세(년)·월·일·시 천간이 지반에 있는 궁(甲은 순수 의), 연한 표시(예: 세지)는 그 지지가 속한 궁이에요.' : '',
-    hv && on('dong') ? ` 동처(표시가 붙은 궁)는 음영${hong ? ', 世 궁은 분홍' : ''}으로 칠했어요.` : '',
+    hv && on('dong') ? ` 동처(세·월·시 표시가 붙은 궁)와 중궁은 음영${hong ? ', 世 궁은 분홍' : ''}으로 칠했어요.` : '',
     hv && hkDoor && on('door') ? ' 팔문은 홍국 팔문이에요(연국 팔문은 연국 보기에서).' : ''));
 }
 

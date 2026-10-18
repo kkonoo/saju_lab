@@ -122,10 +122,10 @@ const HK_REL_KO = { 兄: '형', 孫: '손', 財: '재', 官: '관', 鬼: '귀', 
 const HK_YUNYEON = ['生氣', '天宜', '絶體', '遊魂', '禍害', '福德', '絶命', '歸魂'];
 const HK_GUA_BITS = { 1: 2, 2: 0, 3: 1, 4: 6, 6: 7, 7: 3, 8: 4, 9: 5 }; // 궁 → 괘(아래·가운데·위 효, 양=1)
 const HK_FLIP = [4, 2, 1, 2, 4, 2, 1, 2];                         // 위 → 가운데 → 아래 → 가운데 …
-// 홍국 팔문(추정): 지반 중궁수 궁(5면 곤2궁)에 사문을 두고, 중5궁을 건너뛰며 낙서 순서로 양둔은 차례로·음둔은 거꾸로 경(驚)·생·휴·경(景)·개·두·상.
-// 참고 앱 두 판(양둔 지반 중궁 九, 음둔 지반 중궁 一)과 맞음 — 다른 중궁수 판으로 더 맞춰 봐야 함
-const HK_DOOR = ['사문', '경문(驚)', '생문', '휴문', '경문(景)', '개문', '두문', '상문'];
-const HK_RING8 = [1, 2, 3, 4, 6, 7, 8, 9];
+// 홍국 팔문(추정): 휴·생·상·두·경(景)·사·경(驚)·개를 정해진 궁 순서에 차례로 놓되, 世 궁이 양둔은 개문·음둔은 생문이 되게 돌림.
+// 궁 순서는 양둔 진3 곤2 간8 태7 손4 리9 감1 건6, 음둔은 그 맞은편 궁(10 − 궁). 참고 앱 판 네 장(양둔 1장, 음둔 3장)과 맞춤
+const HK_DOOR = ['휴문', '생문', '상문', '두문', '경문(景)', '사문', '경문(驚)', '개문'];
+const HK_DOOR_PATH = [3, 2, 8, 7, 4, 9, 1, 6];
 const HK_PAIRS = { // 지지 관계(지지 순서대로 적음)
   沖: ['子午', '丑未', '寅申', '卯酉', '辰戌', '巳亥'], 怨嗔: ['子未', '丑午', '寅酉', '卯申', '辰亥', '巳戌'],
   刑: ['寅巳', '巳申', '寅申', '丑戌', '戌未', '丑未', '子卯'], 破: ['子酉', '卯午', '丑辰', '未戌', '寅亥', '巳申'], 害: ['子未', '丑午', '寅巳', '卯辰', '申亥', '酉戌'],
@@ -172,9 +172,9 @@ function hkYuk(s, n) { // 世 수 s 기준 n의 육친
   if (GEUK[b] === a) return s % 2 === n % 2 ? '鬼' : '官';
   return '父';
 }
-// 소운: 그해가 드는 궁(낙서 순서, 중5궁 포함). 양둔 판은 甲子년을 남자 곤2·여자 간8궁에 두고 해마다 한 궁씩 차례로,
-// 음둔 판은 남자 태7·여자 감1궁에 두고 거꾸로(음둔 여자는 1964년생 판으로 맞춤, 음둔 남자는 추정). 60년마다(甲子년) 다시 처음 궁에서
-const hkSoun = (Y, male, yang = true) => { const n = mod(Y - 1984, 60); return yang ? mod(n + (male ? 1 : 7), 9) + 1 : mod((male ? 6 : 0) - n, 9) + 1; };
+// 소운: 그해가 드는 궁(낙서 순서, 중5궁 포함). 甲子년을 원명국 국수의 궁에 두고 양둔은 해마다 한 궁씩 차례로, 음둔은 거꾸로(남녀 같음).
+// 60년마다(甲子년) 다시 처음 궁에서. born: 원명국 { yang, ju }. 참고 앱 판 다섯 장(양둔 8·2국, 음둔 1·6·6국)과 맞춤
+const hkSoun = (Y, born) => { const n = mod(Y - 1984, 60); return mod(born.ju - 1 + (born.yang ? n : -n), 9) + 1; };
 // 본명성(九星): 남자 1992년 八白에서 해마다 하나씩 거꾸로, 여자 1992년 七赤에서 하나씩 차례로 (입춘 기준 해)
 const hkBonmyeong = (Y0, male) => (male ? mod(7 - (Y0 - 1992), 9) : mod(6 + (Y0 - 1992), 9)) + 1;
 // 행년(年局의 行年): 1세를 본명성 궁에 두고 한 살마다 한 궁씩 차례로. 중5궁이면 곤2궁에 기궁
@@ -202,8 +202,8 @@ function hkSinsal(p, earth, yang) { // → { 궁: [{ name, z, fu }] }
   for (const q in at) at[q].sort((a, b) => a.fu - b.fu || HK_SS_ORDER.indexOf(a.name) - HK_SS_ORDER.indexOf(b.name));
   return at;
 }
-// p: 사주 { year, month, day, hour }, sajuYear: 태어난 해(입춘 기준) — 소운·행년 나이 계산용, yang: 이 판이 양둔인지(天乙·팔문), bornYang: 원명국이 양둔인지(소운)
-function honggukCalc(p, male, sajuYear, yang = true, bornYang = yang) {
+// p: 사주 { year, month, day, hour }, sajuYear: 태어난 해(입춘 기준) — 소운·행년 나이 계산용, yang: 이 판이 양둔인지(天乙·팔문), born: 원명국 { yang, ju }(소운)
+function honggukCalc(p, male, sajuYear, yang, born) {
   const gz = [p.year, p.month, p.day, p.hour];
   const sumG = gz.reduce((a, g) => a + GAN.indexOf(g[0]) + 1, 0), sumJ = gz.reduce((a, g) => a + JI.indexOf(g[1]) + 1, 0);
   const ch = sumG % 9 || 9, ce = sumJ % 9 || 9;
@@ -218,8 +218,8 @@ function honggukCalc(p, male, sajuYear, yang = true, bornYang = yang) {
   const yunyeon = {};
   let bits = HK_GUA_BITS[base];
   HK_FLIP.forEach((f, k) => { bits ^= f; yunyeon[+Object.keys(HK_GUA_BITS).find(q => HK_GUA_BITS[q] === bits)] = HK_YUNYEON[k]; });
-  const doors = {}, d0 = HK_RING8.indexOf(base);
-  HK_DOOR.forEach((d, k) => { doors[HK_RING8[mod(d0 + (yang ? k : -k), 8)]] = d; });
+  const doors = {}, path = yang ? HK_DOOR_PATH : HK_DOOR_PATH.map(q => 10 - q), d0 = path.indexOf(se) - (yang ? 7 : 1);
+  path.forEach((q, j) => { doors[q] = HK_DOOR[mod(j - d0, 8)]; });
   // 대운: 1~45세는 世부터 낙서 순서로 차례로 돌며 지반수만큼, 46~90세는 다시 世부터 거꾸로 천반수만큼 (남녀 같음)
   const step = (q, dir) => mod(q - 1 + dir, 9) + 1;
   const daeun = {};
@@ -235,6 +235,6 @@ function honggukCalc(p, male, sajuYear, yang = true, bornYang = yang) {
     yunyeon: yunyeon[k] || '', door: doors[k] || '', unseong: k === 5 ? [] : [...(HK_UN_ORDER[k] || QM_GUNG_JI[k])].map(z => ({ z, u: unseong(seGan, z) })),
     daeun: daeun[k], label: hkRelLabel(heaven[k], earth[k]), ages: [], sinsal: sinsal[k] || [],
   };
-  for (let a = 1; a <= 90; a++) palaces[hkSoun(sajuYear + a - 1, male, bornYang)].ages.push(a);
-  return { type: 'hongguk', sumG, sumJ, ch, ce, missH, missE, se, seNum: s, seGan, base, guk: hkGuk(ch, ce), palaces, kongDay: xunOf(p.day).kong, dayJi: p.day[1], male, sajuYear, bon: hkBonmyeong(sajuYear, male), yang, bornYang };
+  for (let a = 1; a <= 90; a++) palaces[hkSoun(sajuYear + a - 1, born)].ages.push(a);
+  return { type: 'hongguk', sumG, sumJ, ch, ce, missH, missE, se, seNum: s, seGan, base, guk: hkGuk(ch, ce), palaces, kongDay: xunOf(p.day).kong, dayJi: p.day[1], male, sajuYear, bon: hkBonmyeong(sajuYear, male), yang, born };
 }
