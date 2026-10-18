@@ -10,7 +10,7 @@ function shiftHours(i, hours) {
   const t = new Date(y, m - 1, d, hh + hours, mm);
   return { ...i, date: `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`, time: `${pad2(t.getHours())}:${pad2(t.getMinutes())}` };
 }
-const qmOpt = () => ({ ...timeOpt(), ju: prefs.qmJu, gods: prefs.qmGods }); // 기문 유파 설정(🔧 보정)
+const qmOpt = () => ({ ...timeOpt(), ju: prefs.qmJu || 'zhirun', gods: prefs.qmGods || 'jj' }); // 기문 유파 설정(🔧 보정), 기본은 참고 앱과 같은 초신접기·구진주작
 const lrOpt = () => ({ ...timeOpt(), un: prefs.lrUn, ssBase: prefs.lrSsBase, inn: prefs.lrInn }); // 육임 12운성·신살 기준(🔧 보정)
 function field(label, input) { return h('label', 'field', label, input); }
 function inp(type, value, attrs = {}) { return Object.assign(h('input'), { type, value: value ?? '', ...attrs }); }
@@ -710,12 +710,12 @@ function ruleRow(label, items, key, def, notes) {
 // 기문 유파·규칙 고르기 (보기·비교·저장한 판 모두 이 설정으로 다시 계산)
 function qimenRules() {
   return h('div', 'panel', h('div', 'panel-head', h('h3', '', '🧭 기문 규칙')),
-    ruleRow('국 정하는 법', [['chaibo', '절기중심법 (拆補)'], ['zhirun', '초신접기 (置閏)']], 'qmJu', 'chaibo', {
+    ruleRow('국 정하는 법', [['zhirun', '초신접기 (置閏)'], ['chaibo', '절기중심법 (拆補)']], 'qmJu', 'zhirun', {
       chaibo: '그날이 든 절기와 그날의 부두(직전 甲·己일)로 상·중·하원을 정해요. 중국 연국 기문에서 흔한 방식이에요.',
-      zhirun: '상원 부두부터 절기마다 15일씩 붙이고, 초신이 9일 이상 쌓이면 망종·대설에 윤국을 둬요. 한국 홍연기문 계열에서 많이 쓰고, 참고 앱과 같아요.' }),
-    ruleRow('양둔 팔신', [['hm', '백호·현무'], ['jj', '구진·주작']], 'qmGods', 'hm', {
+      zhirun: '상원 부두부터 절기마다 15일씩 붙이고, 초신이 9일 이상 쌓이면 망종·대설에 윤국을 둬요. 한국 홍연기문 계열에서 많이 쓰고, 참고 앱과 같아요. 이 앱의 기본이에요.' }),
+    ruleRow('양둔 팔신', [['jj', '구진·주작'], ['hm', '백호·현무']], 'qmGods', 'jj', {
       hm: '양둔·음둔 모두 직부 등사 태음 육합 백호 현무 구지 구천.',
-      jj: '양둔은 직부 등사 태음 육합 구진 주작 구지 구천, 음둔은 백호·현무(陽遁用勾陳朱雀). 참고 앱과 같아요.' }),
+      jj: '양둔은 직부 등사 태음 육합 구진 주작 구지 구천, 음둔은 백호·현무(陽遁用勾陳朱雀). 참고 앱과 같아요. 이 앱의 기본이에요.' }),
     h('p', 'hint', '📖 용어: ', termChip('qm-chaibo'), ' ', termChip('qm-chosin'), ' ', termChip('qm-g-gujin')));
 }
 // 육임 12운성·신살 기준 (보기 판의 12운성·신살 칩에 씀)

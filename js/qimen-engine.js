@@ -1,7 +1,7 @@
 'use strict';
 // 연국(시가) 기문둔갑 포국 — 전반(轉盤)식, 중5궁은 곤2궁에 기궁
-// 국수: 절기중심법(拆補法, 기본) 또는 초신접기법(置閏法) — opt.ju === 'zhirun'
-// 팔신: 양둔·음둔 모두 백호·현무(기본), 또는 양둔만 구진·주작 — opt.gods === 'jj'
+// 국수: 절기중심법(拆補法) 또는 초신접기법(置閏法) — opt.ju === 'zhirun' (앱 기본은 🔧 보정의 초신접기, 사례 판은 拆補)
+// 팔신: 양둔·음둔 모두 백호·현무, 또는 양둔만 구진·주작 — opt.gods === 'jj' (앱 기본은 구진·주작)
 
 const QM_YI = '戊己庚辛壬癸丁丙乙'; // 삼기육의 배치 순서
 const QM_STAR = { 1: '천봉', 2: '천예', 3: '천충', 4: '천보', 5: '천금', 6: '천심', 7: '천주', 8: '천임', 9: '천영' };
@@ -138,22 +138,23 @@ function hkJiRel(a, b) { // { 沖: '子午', 刑: '寅巳', … } 있는 것만
   if (a === b && '辰午酉亥'.includes(a)) out.自刑 = a + a;
   return out;
 }
-// 칸 표시: 十은 관계를 안 봄. 四·五는 九金殺, 五·五는 自刑, 그 밖에는 沖 > 怨嗔 > 刑(自刑). 파·해만 있으면 안 씀(참고 앱과 같음)
-function hkRelLabel(n1, n2) {
-  if (n1 === 10 || n2 === 10) return '';
+// 칸 표시: 수를 지지로 바꿔(五는 戌이되 손4궁에서는 辰, 十은 未) 沖 > 怨嗔 > 刑·自刑 > 破(육합 짝은 빼고) 중 하나, 害가 곁들면 (害)를 붙이고 害뿐이면 殺.
+// 四·五는 九金殺. 참고 앱 1988-10-10 판(寅巳刑(害)·卯午破·戌未刑·申亥殺·子酉破), 1964-12-06 판(손4궁 五·五 辰辰自刑), 1985-09-20 판(곤2궁 五·五 표시 없음)과 맞춤
+const hkJiOf = (n, q) => (n === 5 && q === 4 ? '辰' : HK_JI[n]);
+function hkRelLabel(n1, n2, q) {
   if ((n1 === 4 && n2 === 5) || (n1 === 5 && n2 === 4)) return '九金殺';
-  if (n1 === 5 && n2 === 5) return '五五自刑'; // 五를 辰으로 보면 辰辰 자형
-  const r = hkJiRel(HK_JI[n1], HK_JI[n2]);
-  return r.沖 ? `${r.沖}沖` : r.怨嗔 ? `${r.怨嗔}怨嗔` : r.刑 ? `${r.刑}刑` : r.自刑 ? `${r.自刑}自刑` : '';
+  const r = hkJiRel(hkJiOf(n1, q), hkJiOf(n2, q));
+  const main = r.沖 ? `${r.沖}沖` : r.怨嗔 ? `${r.怨嗔}怨嗔` : r.刑 ? `${r.刑}刑` : r.自刑 ? `${r.自刑}自刑` : r.破 && !r.合 ? `${r.破}破` : '';
+  return main ? main + (r.害 ? '(害)' : '') : r.害 ? `${r.害}殺` : '';
 }
-// 중궁 局: 같은 음양끼리 극(진극)이거나 지지 沖이면 沖局 > 怨嗔局 > 음양이 다른 극(가극)이면 戰局 > 刑·害·破(육합 짝은 빼고)면 刑破害局 > 和局
+// 중궁 局: 같은 수이거나(참고 앱 1975-05-23 판 四·四) 같은 음양끼리 극(진극)이거나 지지 沖이면 沖局 > 怨嗔局 > 음양이 다른 극(가극)이면 戰局 > 刑·害·破(육합 짝은 빼고)면 刑破害局 > 和局
 function hkGuk(nh, ne) {
   const a = HK_OH(nh), b = HK_OH(ne), geuk = GEUK[a] === b || GEUK[b] === a;
   const r = hkJiRel(HK_JI[nh], HK_JI[ne]);
-  if (r.沖 || (geuk && nh % 2 === ne % 2)) return '沖局';
+  if (nh === ne || r.沖 || (geuk && nh % 2 === ne % 2)) return '沖局';
   if (r.怨嗔) return '怨嗔局';
   if (geuk) return '戰局';
-  return r.刑 || r.自刑 || r.害 || (r.破 && !r.合) || (nh === 5 && ne === 5) ? '刑破害局' : '和局';
+  return r.刑 || r.自刑 || r.害 || (r.破 && !r.合) ? '刑破害局' : '和局';
 }
 // 두 수의 짝 읽기 (천반 a → 지반 b): 하도 생성수 짝(一六·二七·三八·四九·五十), 같은 수, 생극(양음이 다르면 진생·가극, 같으면 가생·진극)
 const HK_HADO = { 水: '일육공종(一六共宗)', 火: '이칠동도(二七同道)', 木: '삼팔위붕(三八爲朋)', 金: '사구위우(四九爲友)', 土: '오십동도(五十同途)' };
@@ -234,8 +235,8 @@ function honggukCalc(p, male, sajuYear, yang, born) {
     heaven: heaven[k], earth: earth[k],
     relH: hkYuk(s, heaven[k]), relE: k === se ? '世' : hkYuk(s, earth[k]),
     yunyeon: yunyeon[k] || '', door: doors[k] || '', unseong: k === 5 ? [] : [...(HK_UN_ORDER[k] || QM_GUNG_JI[k])].map(z => ({ z, u: unseong(seGan, z) })),
-    daeun: daeun[k], label: hkRelLabel(heaven[k], earth[k]), ages: [], sinsal: sinsal[k] || [],
+    daeun: daeun[k], label: hkRelLabel(heaven[k], earth[k], k), ages: [], sinsal: sinsal[k] || [],
   };
-  for (let a = 1; a <= 90; a++) palaces[hkSoun(sajuYear + a - 1, born)].ages.push(a);
+  for (let a = 1; a <= 100; a++) palaces[hkSoun(sajuYear + a - 1, born)].ages.push(a); // 참고 앱은 90세 넘게도 적음(93세까지 봄)
   return { type: 'hongguk', sumG, sumJ, ch, ce, missH, missE, se, seNum: s, seGan, base, guk: hkGuk(ch, ce), palaces, kongDay: xunOf(p.day).kong, dayJi: p.day[1], male, sajuYear, bon: hkBonmyeong(sajuYear, male), yang, born };
 }
