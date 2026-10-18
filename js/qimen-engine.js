@@ -122,10 +122,11 @@ const HK_REL_KO = { 兄: '형', 孫: '손', 財: '재', 官: '관', 鬼: '귀', 
 const HK_YUNYEON = ['生氣', '天宜', '絶體', '遊魂', '禍害', '福德', '絶命', '歸魂'];
 const HK_GUA_BITS = { 1: 2, 2: 0, 3: 1, 4: 6, 6: 7, 7: 3, 8: 4, 9: 5 }; // 궁 → 괘(아래·가운데·위 효, 양=1)
 const HK_FLIP = [4, 2, 1, 2, 4, 2, 1, 2];                         // 위 → 가운데 → 아래 → 가운데 …
-// 홍국 팔문(추정): 휴·생·상·두·경(景)·사·경(驚)·개를 정해진 궁 순서에 차례로 놓되, 世 궁이 양둔은 개문·음둔은 생문이 되게 돌림.
-// 궁 순서는 양둔 진3 곤2 간8 태7 손4 리9 감1 건6, 음둔은 그 맞은편 궁(10 − 궁). 참고 앱 판 네 장(양둔 1장, 음둔 3장)과 맞춤
+// 홍국 팔문(추정): 궁마다 놓이는 틀은 판마다 같고(양둔 틀 = 1993-01-29 판, 음둔 틀 = 그 맞은편 궁), 판마다 문 이름만
+// 휴·생·상·두·경(景)·사·경(驚)·개 차례로 k칸씩 돌아감. 참고 앱 판 여섯 장이 모두 이 틀에 맞음.
+// k를 정하는 규칙은 아직 모름 — 여섯 장에 맞는 후보(일진 60갑자 번호: 양둔 2칸씩·음둔 5칸씩)로 임시로 셈
 const HK_DOOR = ['휴문', '생문', '상문', '두문', '경문(景)', '사문', '경문(驚)', '개문'];
-const HK_DOOR_PATH = [3, 2, 8, 7, 4, 9, 1, 6];
+const HK_DOOR_BASE = { 1: 6, 2: 1, 3: 0, 4: 4, 6: 7, 7: 3, 8: 2, 9: 5 }; // 양둔 k=0: 감1 驚 곤2 生 진3 休 손4 景 건6 開 태7 杜 간8 傷 리9 死
 const HK_PAIRS = { // 지지 관계(지지 순서대로 적음)
   沖: ['子午', '丑未', '寅申', '卯酉', '辰戌', '巳亥'], 怨嗔: ['子未', '丑午', '寅酉', '卯申', '辰亥', '巳戌'],
   刑: ['寅巳', '巳申', '寅申', '丑戌', '戌未', '丑未', '子卯'], 破: ['子酉', '卯午', '丑辰', '未戌', '寅亥', '巳申'], 害: ['子未', '丑午', '寅巳', '卯辰', '申亥', '酉戌'],
@@ -218,8 +219,8 @@ function honggukCalc(p, male, sajuYear, yang, born) {
   const yunyeon = {};
   let bits = HK_GUA_BITS[base];
   HK_FLIP.forEach((f, k) => { bits ^= f; yunyeon[+Object.keys(HK_GUA_BITS).find(q => HK_GUA_BITS[q] === bits)] = HK_YUNYEON[k]; });
-  const doors = {}, path = yang ? HK_DOOR_PATH : HK_DOOR_PATH.map(q => 10 - q), d0 = path.indexOf(se) - (yang ? 7 : 1);
-  path.forEach((q, j) => { doors[q] = HK_DOOR[mod(j - d0, 8)]; });
+  const di = gzIndex(p.day), dk = yang ? mod(2 * (di - 46), 8) : mod(5 * (di - 25), 8), doors = {};
+  for (const q in HK_DOOR_BASE) doors[yang ? q : 10 - q] = HK_DOOR[mod(HK_DOOR_BASE[q] + dk, 8)];
   // 대운: 1~45세는 世부터 낙서 순서로 차례로 돌며 지반수만큼, 46~90세는 다시 世부터 거꾸로 천반수만큼 (남녀 같음)
   const step = (q, dir) => mod(q - 1 + dir, 9) + 1;
   const daeun = {};
