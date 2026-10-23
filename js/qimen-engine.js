@@ -122,11 +122,17 @@ const HK_REL_KO = { 兄: '형', 孫: '손', 財: '재', 官: '관', 鬼: '귀', 
 const HK_YUNYEON = ['生氣', '天宜', '絶體', '遊魂', '禍害', '福德', '絶命', '歸魂'];
 const HK_GUA_BITS = { 1: 2, 2: 0, 3: 1, 4: 6, 6: 7, 7: 3, 8: 4, 9: 5 }; // 궁 → 괘(아래·가운데·위 효, 양=1)
 const HK_FLIP = [4, 2, 1, 2, 4, 2, 1, 2];                         // 위 → 가운데 → 아래 → 가운데 …
-// 홍국 팔문: 甲子일의 틀(양둔·음둔 따로)에서, 일진이 甲子에서 하나 갈 때마다 문 이름을 휴·생·상·두·경(景)·사·경(驚)·개 차례로
-// 양둔은 2칸, 음둔은 5칸씩 돌림. 참고 앱 판 여덟 장과 맞음(마지막 두 장은 미리 맞힘)
+// 홍국 팔문: 정해진 길을 따라 휴·생·상·두·경(景)·사·경(驚)·개 차례로 놓음
+//   길 — 양둔 감1→건6→진3→곤2→간8→태7→손4→리9, 음둔 감1→리9→손4→태7→간8→곤2→진3→건6
+//   감1궁의 문(休=0 … 開=7) — 양둔: 이끄는 기둥(원명국 시주·年局 연주·月局 월주·日局 일주)의 60갑자 번호 n으로 3n+6,
+//                              음둔: 일진 번호 n으로 5n (8로 나눈 나머지)
+// 참고 앱 판과 맞춘 추정: 양둔 원명국 세 장(1992-12-29·1993-01-29·1994-01-10)·年局 두 장, 음둔 원명국 다섯 장·日局 한 장. 月局·양둔 日局·음둔 年局은 아직 대조 못 함
 const HK_DOOR = ['휴문', '생문', '상문', '두문', '경문(景)', '사문', '경문(驚)', '개문'];
-const HK_DOOR_JZ = { yang: { 1: 2, 2: 5, 3: 4, 4: 0, 6: 3, 7: 7, 8: 6, 9: 1 },  // 甲子일 양둔: 감1 傷 곤2 死 진3 景 손4 休 건6 杜 태7 開 간8 驚 리9 生
-  yin: { 1: 0, 2: 5, 3: 6, 4: 2, 6: 7, 7: 3, 8: 4, 9: 1 } };                     // 甲子일 음둔: 감1 休 곤2 死 진3 驚 손4 傷 건6 開 태7 杜 간8 景 리9 生
+const HK_DOOR_PATH = { yang: [1, 6, 3, 2, 8, 7, 4, 9], yin: [1, 9, 4, 7, 8, 2, 3, 6] };
+function hkDoors(p, yang, lead = 'hour') {
+  const c = yang ? 3 * gzIndex(p[lead]) + 6 : 5 * gzIndex(p.day);
+  return Object.fromEntries(HK_DOOR_PATH[yang ? 'yang' : 'yin'].map((q, j) => [q, HK_DOOR[mod(c + j, 8)]]));
+}
 const HK_PAIRS = { // 지지 관계(지지 순서대로 적음)
   沖: ['子午', '丑未', '寅申', '卯酉', '辰戌', '巳亥'], 怨嗔: ['子未', '丑午', '寅酉', '卯申', '辰亥', '巳戌'],
   刑: ['寅巳', '巳申', '寅申', '丑戌', '戌未', '丑未', '子卯'], 破: ['子酉', '卯午', '丑辰', '未戌', '寅亥', '巳申'], 害: ['子未', '丑午', '寅巳', '卯辰', '申亥', '酉戌'],
@@ -205,7 +211,8 @@ function hkSinsal(p, earth, yang) { // → { 궁: [{ name, z, fu }] }
   return at;
 }
 // p: 사주 { year, month, day, hour }, sajuYear: 태어난 해(입춘 기준) — 소운·행년 나이 계산용, yang: 이 판이 양둔인지(天乙·팔문), born: 원명국 { yang, ju }(소운)
-function honggukCalc(p, male, sajuYear, yang, born) {
+// lead: 팔문을 이끄는 기둥(원명국 'hour', 年局 'year', 月局 'month', 日局 'day')
+function honggukCalc(p, male, sajuYear, yang, born, lead = 'hour') {
   const gz = [p.year, p.month, p.day, p.hour];
   const sumG = gz.reduce((a, g) => a + GAN.indexOf(g[0]) + 1, 0), sumJ = gz.reduce((a, g) => a + JI.indexOf(g[1]) + 1, 0);
   const ch = sumG % 9 || 9, ce = sumJ % 9 || 9;
@@ -220,8 +227,7 @@ function honggukCalc(p, male, sajuYear, yang, born) {
   const yunyeon = {};
   let bits = HK_GUA_BITS[base];
   HK_FLIP.forEach((f, k) => { bits ^= f; yunyeon[+Object.keys(HK_GUA_BITS).find(q => HK_GUA_BITS[q] === bits)] = HK_YUNYEON[k]; });
-  const jz = HK_DOOR_JZ[yang ? 'yang' : 'yin'], dk = gzIndex(p.day) * (yang ? 2 : 5), doors = {};
-  for (const q in jz) doors[q] = HK_DOOR[mod(jz[q] + dk, 8)];
+  const doors = hkDoors(p, yang, lead);
   // 대운: 1~45세는 世부터 낙서 순서로 차례로 돌며 지반수만큼, 46~90세는 다시 世부터 거꾸로 천반수만큼 (남녀 같음)
   const step = (q, dir) => mod(q - 1 + dir, 9) + 1;
   const daeun = {};
@@ -238,5 +244,5 @@ function honggukCalc(p, male, sajuYear, yang, born) {
     daeun: daeun[k], label: hkRelLabel(heaven[k], earth[k], k), ages: [], sinsal: sinsal[k] || [],
   };
   for (let a = 1; a <= 100; a++) palaces[hkSoun(sajuYear + a - 1, born)].ages.push(a); // 참고 앱은 90세 넘게도 적음(93세까지 봄)
-  return { type: 'hongguk', sumG, sumJ, ch, ce, missH, missE, se, seNum: s, seGan, base, guk: hkGuk(ch, ce), palaces, kongDay: xunOf(p.day).kong, dayJi: p.day[1], male, sajuYear, bon: hkBonmyeong(sajuYear, male), yang, born };
+  return { type: 'hongguk', sumG, sumJ, ch, ce, missH, missE, se, seNum: s, seGan, base, guk: hkGuk(ch, ce), palaces, kongDay: xunOf(p.day).kong, dayJi: p.day[1], male, sajuYear, bon: hkBonmyeong(sajuYear, male), yang, born, lead: yang ? lead : 'day' };
 }

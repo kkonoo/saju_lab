@@ -254,7 +254,7 @@ function qimenBirth(top, out) {
     st.slot = cd.slot || '';
     const r = qimenAt(...parseDT({ date: cd.date, time: i.time }), qmOpt());
     const b0 = cd.k === 'won' ? r : qimenAt(...parseDT(i), qmOpt()), birth = b0.pillars, born = { yang: b0.dun === '양둔', ju: b0.ju }; // 소운은 원명국의 둔·국수로
-    const hk = honggukCalc(r.pillars, i.male, birth.sajuYear, r.dun === '양둔', born);
+    const hk = honggukCalc(r.pillars, i.male, birth.sajuYear, r.dun === '양둔', born, { won: 'hour', year: 'year', month: 'month', day: 'day' }[cd.k]);
     const thisYear = +today.slice(0, 4), won = cd.k === 'won';
     const hv = { hk, layer: prefs.qmLayer || 'both', show: prefs.qmShow || {}, thisYear, won, P: r.pillars }; // 대운·소운은 원명국에만
     if (won) { hv.years = {}; for (let y = thisYear; y < thisYear + 9; y++) hv.years[hkSoun(y, born)] = y; }
@@ -275,7 +275,7 @@ function qimenBirth(top, out) {
       chartBar(cd), chipBar(cd),
       drawQimen(r, (part, focus) => aiPart('qimenBirth', st, r, `${st.slot}${part}`, focus), hv)),
       ...aiBox('qimenBirth', st, r),
-      h('p', 'hint', '💡 연국기문 명반에 홍국을 겹쳤어요. 홍국 규칙은 참고 앱 판(남녀 원명국·年局·日局)과 맞췄어요. 홍국 팔문은 참고 앱 판 네 장으로 맞춘 추정이에요. 태을구성·강약·기의백격은 아직 없어요.'));
+      h('p', 'hint', '💡 연국기문 명반에 홍국을 겹쳤어요. 홍국 규칙은 참고 앱 판(남녀 원명국·年局·日局)과 맞췄어요. 홍국 팔문은 참고 앱 판으로 맞춘 추정이에요(양둔은 원명국 시주·年局 연주, 음둔은 일진). 태을구성·강약·기의백격은 아직 없어요.'));
   }
   top.append(
     h('div', 'form-grid', bd.el, field('태어난 시각', time), h('div', 'field', '성별', sex)),
