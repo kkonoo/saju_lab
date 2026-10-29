@@ -317,7 +317,7 @@ function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 
     x.relE === '世' ? `世 위에 ${HK_REL_KO[x.relH]}(${x.relH})${bat(x.relH) ? '을' : '를'} 얹은 자리예요. 홍국에서는 世 위에 무엇이 얹혔는지(예: 父를 얹으면 인수를 머리에 인 것)를 특히 중요하게 봐요.` : '',
     '위는 천반이라 겉으로 드러난 일·바깥·상대 쪽, 아래는 지반이라 속·바탕·내 쪽으로 읽는 경우가 많아요. 유파마다 조금씩 달라요.',
     `${hk.male ? '여자' : '남자'}라면 뜻이 달라져요: ${[...new Set([x.relH, x.relE])].filter(r => r !== '世').map(r => `${r} ${HK_REL_MEAN[r][1 - g]}`).join(' · ') || '—'}`];
-  const rel = rl => tip(`hk-rel${rl === '世' ? ' se' : ''}`, rl, `육친 짝 ${x.relH}·${x.relE} — ${yp.name}`, relLines,
+  const rel = (rl, side) => tip(`hk-rel ${side}${rl === '世' ? ' se' : ''}`, rl, `육친 짝 ${x.relH}·${x.relE} — ${yp.name}`, relLines,
     ['qm-hk-yuk', 'base-yukchin', x.relE === '世' ? 'qm-hk-se' : null]);
   const du = (a, side) => (on('daeun') && hv.won && a ? tip('hk-du', `${a[0]}~${a[1]}`, `대운(大運) ${a[0]}~${a[1]}세 · ${side}반`, [
     `1~45세는 세(世) 궁(${QM_GUNG[hk.se]})부터 낙서 순서로 차례로 돌며 지반수만큼, 46~90세는 다시 世 궁부터 거꾸로 돌며 천반수만큼 해를 나눠요(남녀 같음).`,
@@ -350,7 +350,7 @@ function hkParts(p, r, hv) { // 홍국 한 궁의 조각들 + 칸 통째 설명 
     x.label ? `${relKo(x.label)}(${x.label})` : '', x.sinsal.length ? `신살 ${x.sinsal.map(s => `${s.fu ? '복' : ''}${ssKo(s.name)}(${s.fu ? '伏' : ''}${s.name})`).join(' · ')}` : '',
     hv.years?.[p] ? `${hv.years[p]}년 소운이 이 궁` : '', hv.months?.[p]?.length ? `음력 ${hv.months[p].join('·')}월이 이 궁` : ''].filter(Boolean);
   const focus = `홍국 천반수 ${x.heaven}(${x.relH}) 지반수 ${x.earth}(${x.relE})${hv.won ? ` 대운 ${x.daeun.heaven.join('~')}/${x.daeun.earth.join('~')}세` : ''}${x.yunyeon ? ` ${x.yunyeon}` : ''}${x.label ? ` ${x.label}` : ''}${x.sinsal.length ? ` 신살 ${x.sinsal.map(s => (s.fu ? '伏' : '') + s.name).join(' ')}` : ''}`;
-  return { x, numH: num(x.heaven, 'up'), numE: num(x.earth, 'dn'), relH: rel(x.relH), relE: rel(x.relE),
+  return { x, numH: num(x.heaven, 'up'), numE: num(x.earth, 'dn'), relH: rel(x.relH, 'up'), relE: rel(x.relE, 'dn'),
     duH: du(x.daeun?.heaven, '천'), duE: du(x.daeun?.earth, '지'), yun, un, lab, ss, ages, top: [yr, mo].filter(Boolean), kong, lines, focus };
 }
 // 4칸 짜리 격자(왼쪽 작은 글자 | 홍국수 | 연국 천간 | 오른쪽 작은 글자), 빈 줄·빈 칸은 접음.
