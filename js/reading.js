@@ -350,7 +350,7 @@ function readTarot(view) {
   const drawBtn = button(`🃏 ${lay()}장 뽑기`, shuffle, 'btn primary');
   view.replaceChildren(
     h('div', 'panel no-print',
-      h('div', 'form-grid', h('div', 'field', '스프레드', seg(Object.entries(SPREADS).map(([k, v]) => [k, `${v.name} (${v.pos.length})`]), i.spread, v => {
+      h('div', 'form-grid', h('div', 'field wide', '스프레드', seg(Object.entries(SPREADS).map(([k, v]) => [k, `${v.name} (${v.pos.length})`]), i.spread, v => {
         i.spread = v; drawBtn.textContent = `🃏 ${lay()}장 뽑기`;
         if (st.deck && !st.result) shuffle(); // 고르는 중이면 새 스프레드로 처음부터
         else if (!st.result) show();

@@ -6,11 +6,10 @@ let learnQuery = '', learnCat = {};
 const norm = s => String(s || '').toLowerCase().replace(/\s+/g, '');
 
 function renderLearn(view, subj, sub, item, focus) {
-  const d = CONTENT[subj];
-  const head = h('div', '', h('p', 'subj-intro', d.intro));
-  if (sub === 'concepts') view.replaceChildren(head, ...conceptList(d, focus));
-  if (sub === 'terms') view.replaceChildren(head, termList(subj, d, focus));
-  if (sub === 'cases') view.replaceChildren(...(item ? caseDetail(d, item) : [head, ...caseList(subj, d)]));
+  const d = CONTENT[subj]; // 과목 소개(d.intro)는 머리 띠에 있어요
+  if (sub === 'concepts') view.replaceChildren(...conceptList(d, focus));
+  if (sub === 'terms') view.replaceChildren(termList(subj, d, focus));
+  if (sub === 'cases') view.replaceChildren(...(item ? caseDetail(d, item) : caseList(subj, d)));
   if (focus) requestAnimationFrame(() => {
     const el = $(`t-${focus}`);
     if (!el) return;

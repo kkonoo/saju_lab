@@ -6,9 +6,10 @@ const KEY = 'saju-lab';
 const PKEY = 'saju-lab-prefs';
 const VERSION = 1;
 
-const SUBJECTS = [
-  { id: 'qimen', name: '🧭 기문' }, { id: 'liuren', name: '🌀 육임' }, { id: 'myeongri', name: '🀄 명리' },
-  { id: 'tarot', name: '🃏 타로' }, { id: 'base', name: '🌱 기초' },
+const SUBJECTS = [ // title·hanja는 머리 띠(과목 이름·작은 윗글)
+  { id: 'qimen', name: '🧭 기문', title: '🧭 기문둔갑', hanja: '奇門遁甲' }, { id: 'liuren', name: '🌀 육임', title: '🌀 대육임', hanja: '大六壬' },
+  { id: 'myeongri', name: '🀄 명리', title: '🀄 자평명리', hanja: '子平命理' },
+  { id: 'tarot', name: '🃏 타로', title: '🃏 타로', hanja: 'TAROT' }, { id: 'base', name: '🌱 기초', title: '🌱 공통 기초', hanja: '陰陽 · 五行 · 干支' },
 ];
 const SUBS = [
   { id: 'read', name: '🔮 보기' }, { id: 'concepts', name: '📘 개념' }, { id: 'terms', name: '📖 용어' }, { id: 'cases', name: '🧩 사례' }, { id: 'calib', name: '🔧 보정' },
@@ -77,7 +78,7 @@ function toast(text, ms = 2000) {
 function applyTheme() {
   if (prefs.theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = prefs.theme;
   document.documentElement.style.setProperty('--fs', prefs.fs);
-  $('themeColor')?.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
+  $('themeColor')?.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--header-bg').trim());
 }
 const pad2 = n => String(n).padStart(2, '0');
 
@@ -177,16 +178,19 @@ function readHash() {
 addEventListener('hashchange', () => { readHash(); render(); scrollTo(0, 0); });
 
 function renderNav() {
-  $('subjNav').replaceChildren(...SUBJECTS.map(s => {
-    const b = button(s.name, () => go(s.id, s.id === 'base' && !baseHas(route.sub) ? 'concepts' : route.sub), '');
-    b.classList.toggle('on', s.id === route.subj);
+  const tab = (label, on, fn) => {
+    const b = button(label, fn, on ? 'on' : '');
+    if (on) b.setAttribute('aria-current', 'page');
     return b;
-  }));
-  $('subNav').replaceChildren(...SUBS.filter(x => route.subj !== 'base' || baseHas(x.id)).map(x => {
-    const b = button(x.id === 'read' && route.subj === 'tarot' ? '🔮 뽑기' : x.name, () => go(route.subj, x.id), '');
-    b.classList.toggle('on', x.id === route.sub);
-    return b;
-  }));
+  };
+  const subj = SUBJECTS.find(s => s.id === route.subj);
+  $('subjNav').replaceChildren(...SUBJECTS.map(s => tab(s.name, s.id === route.subj, () => go(s.id, s.id === 'base' && !baseHas(route.sub) ? 'concepts' : route.sub))));
+  $('pageEyebrow').textContent = subj.hanja;
+  $('pageTitle').textContent = subj.title;
+  $('pageLead').textContent = CONTENT[route.subj]?.intro || '';
+  $('pageHead').dataset.sub = route.sub;
+  $('subNav').replaceChildren(...SUBS.filter(x => route.subj !== 'base' || baseHas(x.id)).map(x =>
+    tab(x.id === 'read' && route.subj === 'tarot' ? '🔮 뽑기' : x.name, x.id === route.sub, () => go(route.subj, x.id))));
 }
 
 function render() {

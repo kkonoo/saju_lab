@@ -7,7 +7,7 @@
 <meta name="description" content="명리·육임·기문·타로 개념과 용어를 공부하고, 날짜로 판을 뽑아 보는 앱">
 <meta name="apple-mobile-web-app-title" content="사주 공부">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" id="themeColor" content="#F5F4F0">
+<meta name="theme-color" id="themeColor" content="#FFFFFF">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/app-192.png">
 <link rel="apple-touch-icon" href="icons/app-maskable-192.png">
@@ -16,17 +16,24 @@
 </head>
 <body>
   <header class="topbar">
-    <h1 class="brand">🔮 사주 공부</h1>
-    <div class="top-tools">
-      <button class="icon-btn" id="savedBtn" title="저장한 판" aria-label="저장한 판">📁</button>
-      <button class="icon-btn" id="settingsBtn" title="설정" aria-label="설정">⚙️</button>
-      <button class="btn" id="accountBtn" hidden>로그인</button>
+    <div class="wrap topbar-inner">
+      <p class="brand">🔮 사주 공부</p>
+      <nav class="subj-nav" id="subjNav" aria-label="과목"></nav>
+      <div class="top-tools">
+        <button class="icon-btn" id="savedBtn" title="저장한 판" aria-label="저장한 판">📁</button>
+        <button class="icon-btn" id="settingsBtn" title="설정" aria-label="설정">⚙️</button>
+        <button class="btn" id="accountBtn" hidden>로그인</button>
+      </div>
     </div>
   </header>
-  <nav class="navs">
-    <div class="seg" id="subjNav" role="tablist" aria-label="과목"></div>
-    <div class="seg" id="subNav" role="tablist" aria-label="보기 방식"></div>
-  </nav>
+  <section class="page-head" id="pageHead">
+    <div class="wrap">
+      <p class="eyebrow" id="pageEyebrow"></p>
+      <h1 id="pageTitle">사주 공부</h1>
+      <p class="lead" id="pageLead"></p>
+      <nav class="tab-bar" id="subNav" aria-label="보기 방식"></nav>
+    </div>
+  </section>
   <main id="view"></main>
 
   <dialog id="termDlg">
