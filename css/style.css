@@ -299,9 +299,7 @@ dialog h3 { margin: 22px 0 8px; padding-top: 16px; border-top: 1px solid var(--l
 .hkg:has(.hk-rel:hover) .hk-rel, .lr-box:has(.lr-pair:hover) .lr-pair { text-decoration: underline dotted; background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 4px; }
 .hk-rel { font-weight: 700; font-size: calc(14px * var(--fs)); line-height: 1.25; } .hk-rel.se { color: var(--bad); }
 .hk-rel.up { font-size: calc(11px * var(--fs)); } /* 위(천반수) 육친은 아래(지반수) 육친보다 작게 — 머리에 얹힌 느낌 */
-.hk-stem { font-size: calc(13px * var(--fs)); font-weight: 700; line-height: 1.2; white-space: nowrap; } .hk-stem.e { font-size: calc(20px * var(--fs)); color: var(--muted); font-weight: 600; } .hk-stem.two { font-size: calc(11.5px * var(--fs)); letter-spacing: -1px; }
-/* 천반은 지반보다 작게 + 지반 바로 위에 붙여서 머리에 얹힌 느낌으로 */
-.hkg .c2:has(> .hk-stem:not(.e)) { align-self: end; } .hkg .c2:has(> .hk-stem.e) { align-self: start; }
+.hk-stem { font-size: calc(15px * var(--fs)); font-weight: 700; line-height: 1.2; white-space: nowrap; } .hk-stem.e { font-size: calc(18px * var(--fs)); color: var(--muted); font-weight: 600; } .hk-stem.two { font-size: calc(13px * var(--fs)); letter-spacing: -1px; } /* 천반은 지반보다 조금 작게 */
 .hk-s { font-size: calc(13px * var(--fs)); line-height: 1.3; }
 .hk-s.star { color: var(--text); } .hk-s.god { color: var(--accent); } .hk-s.yun { color: var(--muted); } .hk-s.un { color: var(--muted); font-size: calc(11px * var(--fs)); }
 .hk-du { color: var(--du); font-size: calc(10.5px * var(--fs)); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -379,7 +377,7 @@ dialog h3 { margin: 22px 0 8px; padding-top: 16px; border-top: 1px solid var(--l
   .qm-cell.hk { padding: 4px 3px 5px; }
   .hkg { column-gap: 3px; }
   .hk-num { font-size: calc(14px * var(--fs)); }
-  .hk-stem { font-size: calc(12px * var(--fs)); } .hk-stem.e { font-size: calc(17px * var(--fs)); } .hk-stem.two { font-size: calc(10.5px * var(--fs)); }
+  .hk-stem { font-size: calc(13px * var(--fs)); } .hk-stem.e { font-size: calc(16px * var(--fs)); } .hk-stem.two { font-size: calc(12px * var(--fs)); }
   .hk-s { font-size: calc(12px * var(--fs)); }
   .hk-du { font-size: calc(9.5px * var(--fs)); }
   .pillars { grid-template-columns: 40px repeat(4, 1fr); }
